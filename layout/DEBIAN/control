@@ -1,0 +1,16 @@
+Package: jp.ashikase.symbolicate
+Name: symbolicate
+Version: 1.4.0~b1
+Description: Tool to symbolicate crash logs.
+    A command-line tool for adding symbol names to iOS crash logs.
+    This tool is based upon CrashReporter by kennytm.
+Architecture: iphoneos-arm
+Pre-Depends: firmware (>=3.0)
+Depiction: http://moreinfo.thebigboss.org/moreinfo/depiction.php?file=symbolicateData
+Homepage: http://github.com/ashikase/symbolicate
+Maintainer: BigBoss <bigboss@thebigboss.org>
+Author: Lance Fetters (ashikase) <gaizin@gmail.com>
+Sponsor: thebigboss.org <http://thebigboss.org>
+Section: Development
+Tag: role::developer
+dev: ashikase
