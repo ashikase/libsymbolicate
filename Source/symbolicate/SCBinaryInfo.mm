@@ -206,8 +206,6 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 }
 
 - (void)dealloc {
-    [_uuid release];
-    [_architecture release];
     [_header release];
     [_methods release];
     [_owner release];
@@ -223,6 +221,9 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
         BOOL hasHeaderFromSharedCacheWithPath = [VMUMemory_File respondsToSelector:@selector(headerFromSharedCacheWithPath:)];
         if (hasHeaderFromSharedCacheWithPath) {
             header = [VMUMemory_File headerFromSharedCacheWithPath:_path];
+            if (header != nil) {
+                _fromSharedCache = YES;
+            }
         }
         if (header == nil) {
             header = [VMUMemory_File headerWithPath:_path];

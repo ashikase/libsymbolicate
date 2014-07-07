@@ -1,13 +1,14 @@
 #import "CRCrashReport.h"
 
 #import <RegexKitLite/RegexKitLite.h>
+#import "CRBinaryImage.h"
 #import "CRException.h"
-#import "CRThread.h"
 #import "CRStackFrame.h"
-
+#import "CRThread.h"
 #import "SCBinaryInfo.h"
-#import "symbolicate.h"
 #import "SCSymbolInfo.h"
+#import "symbolicate.h"
+
 #include <notify.h>
 #include "common.h"
 
@@ -152,13 +153,12 @@ static uint64_t uint64FromHexString(NSString *string) {
     CRException *exception = [self exception];
     if (![exceptionFilters containsObject:[exception type]]) {
         // Mark which binary images are unblamable.
-        BOOL hasHeaderFromSharedCacheWithPath = [VMUMemory_File respondsToSelector:@selector(headerFromSharedCacheWithPath:)];
         for (NSNumber *key in binaryImages) {
-            SCBinaryInfo *bi = [binaryImages objectForKey:key];
+            CRBinaryImage *bi = [binaryImages objectForKey:key];
 
             // Determine if binary image should not be blamed.
             BOOL blamable = YES;
-            if (hasHeaderFromSharedCacheWithPath && [[bi header] isFromSharedCache]) {
+            if ([[bi binaryInfo] isFromSharedCache]) {
                 // Don't blame anything from the shared cache.
                 blamable = NO;
             } else {
@@ -209,7 +209,7 @@ static uint64_t uint64FromHexString(NSString *string) {
             for (CRStackFrame *stackFrame in stackFrames) {
                 // Retrieve info for related binary image.
                 NSNumber *imageAddress = [NSNumber numberWithUnsignedLongLong:[stackFrame imageAddress]];
-                SCBinaryInfo *bi = [binaryImages objectForKey:imageAddress];
+                CRBinaryImage *bi = [binaryImages objectForKey:imageAddress];
                 if (bi != nil) {
                     // Check symbol name of system functions against blame filters.
                     BOOL blamable = [bi isBlamable];
@@ -498,13 +498,14 @@ static uint64_t uint64FromHexString(NSString *string) {
                     if ((count == 5) || (count == 6)) {
                         uint64_t imageAddress = uint64FromHexString([array objectAtIndex:1]);
                         uint64_t size = imageAddress - uint64FromHexString([array objectAtIndex:2]);
-                        SCBinaryInfo *bi = [[SCBinaryInfo alloc] initWithPath:[array objectAtIndex:(count - 1)] address:imageAddress];
-                        [bi setArchitecture:[array objectAtIndex:3]];
+                        CRBinaryImage *bi = [CRBinaryImage new];
+                        [bi setAddress:imageAddress];
                         [bi setSize:size];
+                        [bi setArchitecture:[array objectAtIndex:3]];
+                        [bi setPath:[array objectAtIndex:(count - 1)]];
                         if (count == 6) {
                             [bi setUuid:[array objectAtIndex:(count - 2)]];
                         }
-                        [bi setBlamable:YES];
                         [binaryImages setObject:bi forKey:[NSNumber numberWithUnsignedLongLong:imageAddress]];
                         [bi release];
                     }
@@ -529,10 +530,10 @@ static uint64_t uint64FromHexString(NSString *string) {
 - (void)symbolicateStackFrame:(CRStackFrame *)stackFrame usingSymbolMaps:(NSDictionary *)symbolMaps {
     // Retrieve symbol info from related binary image.
     NSNumber *imageAddress = [NSNumber numberWithUnsignedLongLong:[stackFrame imageAddress]];
-    SCBinaryInfo *bi = [[self binaryImages] objectForKey:imageAddress];
+    CRBinaryImage *bi = [[self binaryImages] objectForKey:imageAddress];
     if (bi != nil) {
         NSDictionary *symbolMap = [symbolMaps objectForKey:[bi path]];
-        SCSymbolInfo *symbolInfo = fetchSymbolInfo(bi, [stackFrame address], symbolMap);
+        SCSymbolInfo *symbolInfo = fetchSymbolInfo([bi binaryInfo], [stackFrame address], symbolMap);
         [stackFrame setSymbolInfo:symbolInfo];
     }
 }
@@ -574,10 +575,10 @@ static uint64_t uint64FromHexString(NSString *string) {
                         address, imageAddress, address - imageAddress];
 
             NSNumber *key = [NSNumber numberWithUnsignedLongLong:imageAddress];
-            SCBinaryInfo *bi = [binaryImages objectForKey:key];
+            CRBinaryImage *bi = [binaryImages objectForKey:key];
             NSString *binaryName = (bi == nil) ?
                 @"???" :
-                [[[bi path] lastPathComponent] stringByAppendingString:([bi isExecutable] ? @" (*)" : @"")];
+                [[[bi path] lastPathComponent] stringByAppendingString:([[bi binaryInfo] isExecutable] ? @" (*)" : @"")];
 
             NSString *comment = nil;
             SCSymbolInfo *symbolInfo = [stackFrame symbolInfo];
@@ -615,7 +616,7 @@ static uint64_t uint64FromHexString(NSString *string) {
     [description appendString:@"Binary Images:\n"];
     NSArray *imageAddresses = [[binaryImages allKeys] sortedArrayUsingSelector:@selector(compare:)];
     for (NSString *key in imageAddresses) {
-        SCBinaryInfo *bi = [binaryImages objectForKey:key];
+        CRBinaryImage *bi = [binaryImages objectForKey:key];
         uint64_t imageAddress = [bi address];
         NSString *path = [bi path];
         NSString *string = [[NSString alloc] initWithFormat:@"0x%08llx - 0x%08llx %@ %@  %@ %@",

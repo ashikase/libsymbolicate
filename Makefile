@@ -6,6 +6,7 @@ libsymbolicate_OBJC_FILES = \
     Libraries/RegexKitLite/RegexKitLite.m \
     Source/common.c \
     Source/crashreport/CRBacktrace.mm \
+    Source/crashreport/CRBinaryImage.mm \
     Source/crashreport/CRCrashReport.mm \
     Source/crashreport/CRException.mm \
     Source/crashreport/CRStackFrame.mm \
