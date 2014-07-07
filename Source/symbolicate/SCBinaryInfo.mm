@@ -129,14 +129,14 @@ process_class:
                                 methodName = [[view stringWithEncoding:NSUTF8StringEncoding] retain];
                                 [view setCursor:loc];
                             }
-                            mi->name = [NSString stringWithFormat:@"%c[%@ %@]", methodType, className, methodName];
+                            [mi setName:[NSString stringWithFormat:@"%c[%@ %@]", methodType, className, methodName]];
                             [methodName release];
                             if (is64Bit) {
                                 [view uint64]; // Skip 'types'
-                                mi->address = [view uint64];
+                                [mi setAddress:[view uint64]];
                             } else {
                                 [view uint32]; // Skip 'types'
-                            mi->address = [view uint32];
+                                [mi setAddress:[view uint32]];
                             }
                             [methods addObject:mi];
                             [mi release];

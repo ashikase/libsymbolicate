@@ -1,8 +1,6 @@
-@interface SCMethodInfo : NSObject {
-    @package
-        uint64_t address;
-        NSString *name;
-}
+@interface SCMethodInfo : NSObject
+@property(nonatomic, assign) uint64_t address;
+@property(nonatomic, copy) NSString *name;
 @end
 
 CFComparisonResult reversedCompareMethodInfos(SCMethodInfo *a, SCMethodInfo *b);

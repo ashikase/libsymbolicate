@@ -95,7 +95,7 @@ SCSymbolInfo *fetchSymbolInfo(SCBinaryInfo *bi, uint64_t address, NSDictionary *
                     count = [methods count];
                     if (count != 0) {
                         SCMethodInfo *targetMethod = [[SCMethodInfo alloc] init];
-                        targetMethod->address = address;
+                        [targetMethod setAddress:address];
                         CFIndex matchIndex = CFArrayBSearchValues((CFArrayRef)methods, CFRangeMake(0, count), targetMethod, (CFComparatorFunction)reversedCompareMethodInfos, NULL);
                         [targetMethod release];
 
@@ -104,9 +104,9 @@ SCSymbolInfo *fetchSymbolInfo(SCBinaryInfo *bi, uint64_t address, NSDictionary *
                         }
                     }
 
-                    if (method != nil && method->address >= symbolAddress) {
-                        name = method->name;
-                        offset = address - method->address;
+                    if (method != nil && [method address] >= symbolAddress) {
+                        name = [method name];
+                        offset = address - [method address];
                     } else {
                         uint64_t textStart = [[header segmentNamed:@"__TEXT"] vmaddr];
                         name = [NSString stringWithFormat:@"0x%08llx", (symbolAddress - textStart)];
