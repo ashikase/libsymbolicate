@@ -134,11 +134,11 @@ static uint64_t uint64FromHexString(NSString *string) {
 
 #pragma mark - Public API (General)
 
-- (void)blame {
-    [self blameUsingFilters:nil];
+- (BOOL)blame {
+    return [self blameUsingFilters:nil];
 }
 
-- (void)blameUsingFilters:(NSDictionary *)filters {
+- (BOOL)blameUsingFilters:(NSDictionary *)filters {
     // Load blame filters.
     NSSet *binaryFilters = [[NSSet alloc] initWithArray:[filters objectForKey:@"BinaryFilters"]];
     NSSet *exceptionFilters = [[NSSet alloc] initWithArray:[filters objectForKey:@"ExceptionFilters"]];
@@ -257,6 +257,9 @@ static uint64_t uint64FromHexString(NSString *string) {
     [functionFilters release];
     [prefixFilters release];
     [reverseFilters release];
+
+    // NOTE: Currently, this always 'succeeds'.
+    return YES;
 }
 
 - (NSString *)stringRepresentation {
@@ -297,11 +300,11 @@ static uint64_t uint64FromHexString(NSString *string) {
     return [result autorelease];
 }
 
-- (void)symbolicate {
-    [self symbolicateUsingSymbolMaps:nil];
+- (BOOL)symbolicate {
+    return [self symbolicateUsingSymbolMaps:nil];
 }
 
-- (void)symbolicateUsingSymbolMaps:(NSDictionary *)symbolMaps {
+- (BOOL)symbolicateUsingSymbolMaps:(NSDictionary *)symbolMaps {
     CRException *exception = [self exception];
 
     // Prepare array of image start addresses for determining symbols of exception.
@@ -335,6 +338,9 @@ static uint64_t uint64FromHexString(NSString *string) {
 
     // Update the description in order to include symbol info.
     [self updateDescription];
+
+    // NOTE: Currently, this always 'succeeds'.
+    return YES;
 }
 
 - (BOOL)writeToFile:(NSString *)filepath forcePropertyList:(BOOL)forcePropertyList {
