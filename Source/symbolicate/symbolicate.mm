@@ -20,15 +20,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #import "symbolicate.h"
 
-#import "BinaryInfo.h"
-#import "MethodInfo.h"
-#import "SymbolInfo.h"
+#import "SCBinaryInfo.h"
+#import "SCMethodInfo.h"
+#import "SCSymbolInfo.h"
 
 #include "demangle.h"
 #include "localSymbols.h"
 
-SymbolInfo *fetchSymbolInfo(BinaryInfo *bi, uint64_t address, NSDictionary *symbolMap) {
-    SymbolInfo *symbolInfo = nil;
+SCSymbolInfo *fetchSymbolInfo(SCBinaryInfo *bi, uint64_t address, NSDictionary *symbolMap) {
+    SCSymbolInfo *symbolInfo = nil;
 
     VMUMachOHeader *header = [bi header];
     if (header != nil) {
@@ -37,7 +37,7 @@ SymbolInfo *fetchSymbolInfo(BinaryInfo *bi, uint64_t address, NSDictionary *symb
         VMUSourceInfo *srcInfo = [owner sourceInfoForAddress:address];
         if (srcInfo != nil) {
             // Store source file name and line number.
-            symbolInfo = [SymbolInfo new];
+            symbolInfo = [SCSymbolInfo new];
             [symbolInfo setSourcePath:[srcInfo path]];
             [symbolInfo setSourceLineNumber:[srcInfo lineNumber]];
         } else {
@@ -90,11 +90,11 @@ SymbolInfo *fetchSymbolInfo(BinaryInfo *bi, uint64_t address, NSDictionary *symb
             } else if (![bi isEncrypted]) {
                 // Determine methods, attempt to match with symbol address.
                 if (symbolAddress != 0) {
-                    MethodInfo *method = nil;
+                    SCMethodInfo *method = nil;
                     NSArray *methods = [bi methods];
                     count = [methods count];
                     if (count != 0) {
-                        MethodInfo *targetMethod = [[MethodInfo alloc] init];
+                        SCMethodInfo *targetMethod = [[SCMethodInfo alloc] init];
                         targetMethod->address = address;
                         CFIndex matchIndex = CFArrayBSearchValues((CFArrayRef)methods, CFRangeMake(0, count), targetMethod, (CFComparatorFunction)reversedCompareMethodInfos, NULL);
                         [targetMethod release];
@@ -116,7 +116,7 @@ SymbolInfo *fetchSymbolInfo(BinaryInfo *bi, uint64_t address, NSDictionary *symb
             }
 
             if (name != nil) {
-                symbolInfo = [SymbolInfo new];
+                symbolInfo = [SCSymbolInfo new];
                 [symbolInfo setName:name];
                 [symbolInfo setOffset:offset];
             }

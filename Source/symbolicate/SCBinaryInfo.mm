@@ -1,6 +1,6 @@
-#import "BinaryInfo.h"
+#import "SCBinaryInfo.h"
 
-#import "MethodInfo.h"
+#import "SCMethodInfo.h"
 #include <mach-o/loader.h>
 #include <objc/runtime.h>
 
@@ -117,7 +117,7 @@ process_class:
                     if (entsize == 12 || entsize == 15) {
                         uint32_t count = [view uint32];
                         for (uint32_t j = 0; j < count; ++j) {
-                            MethodInfo *mi = [[MethodInfo alloc] init];
+                            SCMethodInfo *mi = [[SCMethodInfo alloc] init];
                             const uint64_t sel = is64Bit ? [view uint64] : [view uint32];
                             NSString *methodName = nil;
                             if (entsize == 15) {
@@ -190,7 +190,7 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     return addresses;
 }
 
-@implementation BinaryInfo
+@implementation SCBinaryInfo
 
 @synthesize header = _header;
 @synthesize methods = _methods;

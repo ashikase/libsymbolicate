@@ -1,4 +1,4 @@
-@interface SymbolInfo : NSObject
+@interface SCSymbolInfo : NSObject
 @property(nonatomic, copy) NSString *name;
 @property(nonatomic) uint64_t offset;
 @property(nonatomic, copy) NSString *sourcePath;

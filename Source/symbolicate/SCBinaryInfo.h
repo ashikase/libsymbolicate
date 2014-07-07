@@ -2,7 +2,7 @@
 
 #include "Headers.h"
 
-@interface BinaryInfo : NSObject
+@interface SCBinaryInfo : NSObject
 @property(nonatomic, readonly) uint64_t address;
 @property(nonatomic, readonly, getter = isEncrypted) BOOL encrypted;
 @property(nonatomic, readonly, getter = isExecutable) BOOL executable;

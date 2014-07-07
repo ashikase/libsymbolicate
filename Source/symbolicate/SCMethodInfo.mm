@@ -1,8 +1,8 @@
-#import "MethodInfo.h"
+#import "SCMethodInfo.h"
 
-@implementation MethodInfo @end
+@implementation SCMethodInfo @end
 
-CFComparisonResult reversedCompareMethodInfos(MethodInfo *a, MethodInfo *b) {
+CFComparisonResult reversedCompareMethodInfos(SCMethodInfo *a, SCMethodInfo *b) {
     return (a->address > b->address) ? kCFCompareLessThan : (a->address < b->address) ? kCFCompareGreaterThan : kCFCompareEqualTo;
 }
 

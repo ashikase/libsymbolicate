@@ -10,9 +10,9 @@ libsymbolicate_OBJC_FILES = \
     Source/crashreport/CRException.mm \
     Source/crashreport/CRStackFrame.mm \
     Source/crashreport/CRThread.mm \
-    Source/symbolicate/BinaryInfo.mm \
-    Source/symbolicate/MethodInfo.mm \
-    Source/symbolicate/SymbolInfo.mm \
+    Source/symbolicate/SCBinaryInfo.mm \
+    Source/symbolicate/SCMethodInfo.mm \
+    Source/symbolicate/SCSymbolInfo.mm \
     Source/symbolicate/demangle.mm \
     Source/symbolicate/localSymbols.mm \
     Source/symbolicate/symbolicate.mm

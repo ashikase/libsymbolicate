@@ -18,15 +18,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-@class BinaryInfo;
-@class NSDictionary;
-@class SymbolInfo;
+@class SCBinaryInfo;
+@class SCSymbolInfo;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-SymbolInfo *fetchSymbolInfo(BinaryInfo *bi, uint64_t address, NSDictionary *symbolMap);
+SCSymbolInfo *fetchSymbolInfo(SCBinaryInfo *bi, uint64_t address, NSDictionary *symbolMap);
 
 #ifdef __cplusplus
 }

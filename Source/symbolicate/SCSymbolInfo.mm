@@ -1,6 +1,6 @@
-#import "SymbolInfo.h"
+#import "SCSymbolInfo.h"
 
-@implementation SymbolInfo
+@implementation SCSymbolInfo
 
 @synthesize name = name_;
 @synthesize sourcePath = sourcePath_;
