@@ -497,7 +497,7 @@ static uint64_t uint64FromHexString(NSString *string) {
                     NSUInteger count = [array count];
                     if ((count == 5) || (count == 6)) {
                         uint64_t imageAddress = uint64FromHexString([array objectAtIndex:1]);
-                        uint64_t size = imageAddress - uint64FromHexString([array objectAtIndex:2]);
+                        uint64_t size = uint64FromHexString([array objectAtIndex:2]) - imageAddress;
                         CRBinaryImage *bi = [CRBinaryImage new];
                         [bi setAddress:imageAddress];
                         [bi setSize:size];
