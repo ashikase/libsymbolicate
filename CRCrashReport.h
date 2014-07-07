@@ -6,7 +6,7 @@ extern "C" {
 
 @class CRException;
 
-@interface CrashReport : NSObject
+@interface CRCrashReport : NSObject
 @property(nonatomic, readonly) NSDictionary *properties;
 @property(nonatomic, readonly) NSArray *processInfo;
 @property(nonatomic, readonly) CRException *exception;
@@ -14,8 +14,8 @@ extern "C" {
 @property(nonatomic, readonly) NSArray *registerState;
 @property(nonatomic, readonly) NSDictionary *binaryImages;
 @property(nonatomic, readonly) BOOL isPropertyList;
-+ (CrashReport *)crashReportWithData:(NSData *)data;
-+ (CrashReport *)crashReportWithFile:(NSString *)filepath;
++ (CRCrashReport *)crashReportWithData:(NSData *)data;
++ (CRCrashReport *)crashReportWithFile:(NSString *)filepath;
 - (id)initWithData:(NSData *)data;
 - (id)initWithFile:(NSString *)filepath;
 - (void)blame;

@@ -1,4 +1,4 @@
-#import "crashreport.h"
+#import "CRCrashReport.h"
 
 #import <RegexKitLite/RegexKitLite.h>
 #import "CRException.h"
@@ -18,7 +18,7 @@ static uint64_t uint64FromHexString(NSString *string) {
     return (uint64_t)unsignedLongLongFromHexString([string UTF8String], [string length]);
 }
 
-@interface CrashReport ()
+@interface CRCrashReport ()
 @property(nonatomic, retain) NSDictionary *properties;
 @property(nonatomic, retain) NSArray *processInfo;
 @property(nonatomic, retain) CRException *exception;
@@ -28,7 +28,7 @@ static uint64_t uint64FromHexString(NSString *string) {
 @property(nonatomic, assign) BOOL isPropertyList;
 @end
 
-@implementation CrashReport
+@implementation CRCrashReport
 
 @synthesize properties = properties_;
 @synthesize processInfo = processInfo_;
@@ -39,11 +39,11 @@ static uint64_t uint64FromHexString(NSString *string) {
 
 #pragma mark - Public API (Creation)
 
-+ (CrashReport *)crashReportWithData:(NSData *)data {
++ (CRCrashReport *)crashReportWithData:(NSData *)data {
     return [[[self alloc] initWithData:data] autorelease];
 }
 
-+ (CrashReport *)crashReportWithFile:(NSString *)filepath {
++ (CRCrashReport *)crashReportWithFile:(NSString *)filepath {
     return [[[self alloc] initWithFile:filepath] autorelease];
 }
 

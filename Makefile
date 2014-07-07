@@ -5,6 +5,7 @@ libsymbolicate_INSTALL_PATH = /usr/lib
 libsymbolicate_OBJC_FILES = \
     Libraries/RegexKitLite/RegexKitLite.m \
     CRBacktrace.mm \
+    CRCrashReport.mm \
     CRException.mm \
     CRStackFrame.mm \
     CRThread.mm \
@@ -14,7 +15,6 @@ libsymbolicate_OBJC_FILES = \
     common.c \
     demangle.mm \
     localSymbols.mm \
-    crashreport.mm \
     symbolicate.mm
 libsymbolicate_LDFLAGS = -lbz2 -licucore
 libsymbolicate_PRIVATE_FRAMEWORKS = Symbolication
