@@ -94,7 +94,7 @@ SCSymbolInfo *fetchSymbolInfo(SCBinaryInfo *bi, uint64_t address, NSDictionary *
                     NSArray *methods = [bi methods];
                     count = [methods count];
                     if (count != 0) {
-                        SCMethodInfo *targetMethod = [[SCMethodInfo alloc] init];
+                        SCMethodInfo *targetMethod = [SCMethodInfo new];
                         [targetMethod setAddress:address];
                         CFIndex matchIndex = CFArrayBSearchValues((CFArrayRef)methods, CFRangeMake(0, count), targetMethod, (CFComparatorFunction)reversedCompareMethodInfos, NULL);
                         [targetMethod release];

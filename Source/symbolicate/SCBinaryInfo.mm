@@ -117,7 +117,7 @@ process_class:
                     if (entsize == 12 || entsize == 15) {
                         uint32_t count = [view uint32];
                         for (uint32_t j = 0; j < count; ++j) {
-                            SCMethodInfo *mi = [[SCMethodInfo alloc] init];
+                            SCMethodInfo *mi = [SCMethodInfo new];
                             const uint64_t sel = is64Bit ? [view uint64] : [view uint32];
                             NSString *methodName = nil;
                             if (entsize == 15) {
