@@ -142,11 +142,13 @@ static uint64_t uint64FromHexString(NSString *string) {
 
 - (BOOL)blameUsingFilters:(NSDictionary *)filters {
     // Load blame filters.
-    NSSet *binaryFilters = [[NSSet alloc] initWithArray:[filters objectForKey:@"BinaryFilters"]];
-    NSSet *exceptionFilters = [[NSSet alloc] initWithArray:[filters objectForKey:@"ExceptionFilters"]];
-    NSSet *functionFilters = [[NSSet alloc] initWithArray:[filters objectForKey:@"FunctionFilters"]];
-    NSSet *prefixFilters = [[NSSet alloc] initWithArray:[filters objectForKey:@"PrefixFilters"]];
-    NSSet *reverseFilters = [[NSSet alloc] initWithArray:[filters objectForKey:@"ReverseFunctionFilters"]];
+    NSDictionary *whitelisted = [filters objectForKey:@"Whitelisted"];
+    NSDictionary *blacklisted = [filters objectForKey:@"Blacklisted"];
+    NSSet *binaryFilters = [[NSSet alloc] initWithArray:[whitelisted objectForKey:@"Binaries"]];
+    NSSet *exceptionFilters = [[NSSet alloc] initWithArray:[whitelisted objectForKey:@"Exceptions"]];
+    NSSet *functionFilters = [[NSSet alloc] initWithArray:[whitelisted objectForKey:@"Functions"]];
+    NSSet *prefixFilters = [[NSSet alloc] initWithArray:[whitelisted objectForKey:@"BinaryPathPrefixes"]];
+    NSSet *reverseFilters = [[NSSet alloc] initWithArray:[blacklisted objectForKey:@"Functions"]];
 
     NSDictionary *binaryImages = [self binaryImages];
 
