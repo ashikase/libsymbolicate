@@ -12,8 +12,9 @@
 #include <notify.h>
 #include "common.h"
 
-static NSString * const kCrashReportBlame = @"blame";
-static NSString * const kCrashReportDescription = @"description";
+// NOTE: These are are allowed to be accessed externally.
+NSString * const kCrashReportBlame = @"blame";
+NSString * const kCrashReportDescription = @"description";
 
 static uint64_t uint64FromHexString(NSString *string) {
     return (uint64_t)unsignedLongLongFromHexString([string UTF8String], [string length]);

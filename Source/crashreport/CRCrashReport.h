@@ -4,6 +4,9 @@
 extern "C" {
 #endif
 
+extern NSString * const kCrashReportBlame;
+extern NSString * const kCrashReportDescription;
+
 @class CRException;
 
 @interface CRCrashReport : NSObject
