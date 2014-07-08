@@ -29,8 +29,15 @@ include theos/makefiles/common.mk
 include $(THEOS)/makefiles/library.mk
 
 after-stage::
-	# Remove repository-related files
+	# Remove repository-related files.
 	- find $(THEOS_STAGING_DIR) -name '.gitkeep' -delete
+	# Copy header files to include directory.
+	- cp $(THEOS_PROJECT_DIR)/Source/common.h $(THEOS_STAGING_DIR)/usr/include/libsymbolicate/
+	- cp $(THEOS_PROJECT_DIR)/Source/crashreport/CR*.h $(THEOS_STAGING_DIR)/usr/include/libsymbolicate/
+	- cp $(THEOS_PROJECT_DIR)/Source/symbolicate/SC*.h $(THEOS_STAGING_DIR)/usr/include/libsymbolicate/
+	- cp $(THEOS_PROJECT_DIR)/Source/symbolicate/demangle.h $(THEOS_STAGING_DIR)/usr/include/libsymbolicate/
+	- cp $(THEOS_PROJECT_DIR)/Source/symbolicate/localSymbols.h $(THEOS_STAGING_DIR)/usr/include/libsymbolicate/
+	- cp $(THEOS_PROJECT_DIR)/Source/symbolicate/symbolicate.h $(THEOS_STAGING_DIR)/usr/include/libsymbolicate/
 
 distclean: clean
 	- rm -f $(THEOS_PROJECT_DIR)/$(APP_ID)*.deb
