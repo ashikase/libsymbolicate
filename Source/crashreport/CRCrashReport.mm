@@ -344,30 +344,6 @@ static uint64_t uint64FromHexString(NSString *string) {
     return YES;
 }
 
-- (BOOL)writeToFile:(NSString *)filepath forcePropertyList:(BOOL)forcePropertyList {
-    BOOL succeeded = NO;
-
-    NSString *report = [self stringRepresentation:([self isPropertyList] || forcePropertyList)];
-    if (report != nil) {
-        if (filepath != nil) {
-            // Write to file.
-            NSError *error = nil;
-            if ([report writeToFile:filepath atomically:YES encoding:NSUTF8StringEncoding error:&error]) {
-                fprintf(stderr, "INFO: Result written to %s.\n", [filepath UTF8String]);
-                succeeded = YES;
-            } else {
-                fprintf(stderr, "ERROR: Unable to write to file: %s.\n", [[error localizedDescription] UTF8String]);
-            }
-        } else {
-            // Print to screen.
-            printf("%s\n", [report UTF8String]);
-            succeeded = YES;
-        }
-    }
-
-    return succeeded;
-}
-
 #pragma mark - Private Methods
 
 - (void)parse {

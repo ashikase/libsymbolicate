@@ -23,7 +23,6 @@ extern NSString * const kCrashReportDescription;
 - (NSString *)stringRepresentation:(BOOL)asPropertyList;
 - (BOOL)symbolicate;
 - (BOOL)symbolicateUsingSymbolMaps:(NSDictionary *)symbolMaps;
-- (BOOL)writeToFile:(NSString *)filepath forcePropertyList:(BOOL)forcePropertyList;
 @end
 
 /* vim: set ft=objc ff=unix sw=4 ts=4 tw=80 expandtab: */
