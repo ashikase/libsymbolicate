@@ -304,10 +304,10 @@ static uint64_t uint64FromHexString(NSString *string) {
 }
 
 - (BOOL)symbolicate {
-    return [self symbolicateUsingSharedCachePath:nil symbolMaps:nil];
+    return [self symbolicateUsingSystemRoot:nil symbolMaps:nil];
 }
 
-- (BOOL)symbolicateUsingSharedCachePath:(NSString *)sharedCachePath symbolMaps:(NSDictionary *)symbolMaps {
+- (BOOL)symbolicateUsingSystemRoot:(NSString *)systemRoot symbolMaps:(NSDictionary *)symbolMaps {
     CRException *exception = [self exception];
 
     // Prepare array of image start addresses for determining symbols of exception.
@@ -320,9 +320,17 @@ static uint64_t uint64FromHexString(NSString *string) {
     // Create symbolicator.
     SCSymbolicator *symbolicator = [SCSymbolicator sharedInstance];
 
-    // Set path of shared cache to use.
-    if (sharedCachePath != nil) {
-        [symbolicator setSharedCachePath:sharedCachePath];
+    // Set architecture to use.
+    for (CRBinaryImage *binaryImage in [[self binaryImages] allValues]) {
+        if ([[binaryImage path] isEqualToString:@"/usr/lib/dyld"]) {
+            [symbolicator setArchitecture:[binaryImage architecture]];
+            break;
+        }
+    }
+
+    // Set system root to use.
+    if (systemRoot != nil) {
+        [symbolicator setSystemRoot:systemRoot];
     }
 
     // Symbolicate the exception (if backtrace exists).

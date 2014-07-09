@@ -9,8 +9,9 @@
 
 @implementation SCSymbolicator
 
+@synthesize architecture = architecture_;
+@synthesize systemRoot = systemRoot_;
 @synthesize mappedCache = mappedCache_;
-@synthesize sharedCachePath = sharedCachePath_;
 
 + (instancetype)sharedInstance {
     static dispatch_once_t once;
@@ -22,34 +23,66 @@
 }
 
 - (void)dealloc {
+    [architecture_ release];
+    [systemRoot_ release];
     [mappedCache_ release];
-    [sharedCachePath_ release];
     [super dealloc];
 }
 
-- (void)setSharedCachePath:(NSString *)sharedCachePath {
-    if (![sharedCachePath_ isEqualToString:sharedCachePath]) {
-        [sharedCachePath_ release];
-        if (sharedCachePath != nil) {
-            sharedCachePath_ = [sharedCachePath copy];
-        } else if ([VMUDyld respondsToSelector:@selector(nativeSharedCachePath)]) {
-            sharedCachePath_ = [[VMUDyld nativeSharedCachePath] copy];
-        }
+- (NSString *)architecture {
+    return architecture_ ?: @"armv7";
+}
 
+- (void)setArchitecture:(NSString *)architecture {
+    if (![architecture_ isEqualToString:architecture]) {
+        [architecture_ release];
+        architecture_ = [architecture copy];
+
+        // Path to shared cache has changed.
         [mappedCache_ release];
-        if (sharedCachePath_ != nil) {
-            // FIXME: Must architecture be specified? If so, make customizable.
-            VMURange range = (VMURange){0, 0};
-            mappedCache_ = [[VMUMemory_File alloc] initWithPath:sharedCachePath_ fileRange:range mapToAddress:0 architecture:[VMUArchitecture currentArchitecture]];
-            if (mappedCache_ != nil) {
-                [mappedCache_ buildSharedCacheMap];
-            } else {
-                fprintf(stderr, "ERROR: Unable to map shared cache file '%s'.\n", [sharedCachePath_ UTF8String]);
-            }
+        mappedCache_ = nil;
+    }
+}
+
+- (NSString *)systemRoot {
+    return systemRoot_ ?: @"/";
+}
+
+- (void)setSystemRoot:(NSString *)systemRoot {
+    if (![systemRoot_ isEqualToString:systemRoot]) {
+        [systemRoot_ release];
+        systemRoot_ = [systemRoot copy];
+
+        // Path to shared cache has changed.
+        [mappedCache_ release];
+        mappedCache_ = nil;
+    }
+}
+
+- (NSString *)sharedCachePath {
+    NSString *sharedCachePath = @"/System/Library/Caches/com.apple.dyld/dyld_shared_cache_";
+
+    // Prepend the system root.
+    sharedCachePath = [[self systemRoot] stringByAppendingPathComponent:sharedCachePath];
+
+    // Add the architecture and return.
+    return [sharedCachePath stringByAppendingString:[self architecture]];
+}
+
+- (VMUMemory_File *)mappedCache {
+    if (mappedCache_ == nil) {
+        // Map the cache.
+        NSString *sharedCachePath = [self sharedCachePath];
+        VMURange range = (VMURange){0, 0};
+        // FIXME: Must architecture be specified? If so, make customizable.
+        mappedCache_ = [[VMUMemory_File alloc] initWithPath:sharedCachePath fileRange:range mapToAddress:0 architecture:[VMUArchitecture currentArchitecture]];
+        if (mappedCache_ != nil) {
+            [mappedCache_ buildSharedCacheMap];
         } else {
-            mappedCache_ = nil;
+            fprintf(stderr, "ERROR: Unable to map shared cache file '%s'.\n", [sharedCachePath UTF8String]);
         }
     }
+    return mappedCache_;
 }
 
 - (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address inBinary:(SCBinaryInfo *)binaryInfo usingSymbolMap:(NSDictionary *)symbolMap {
