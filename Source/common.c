@@ -1,3 +1,12 @@
+/**
+ * Name: libsymbolicate
+ * Type: iOS/OS X shared library
+ * Desc: Library for parsing and symbolicating iOS crash log files.
+ *
+ * Author: Lance Fetters (aka. ashikase)
+ * License: GPL v3 (See LICENSE file for details)
+ */
+
 static unsigned char nibble(char c) {
     if (c >= '0' && c <= '9') {
         return c - '0';
