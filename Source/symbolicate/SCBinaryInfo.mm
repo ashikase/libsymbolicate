@@ -1,6 +1,7 @@
 #import "SCBinaryInfo.h"
 
 #import "SCMethodInfo.h"
+#import "SCSymbolicator.h"
 #include <mach-o/loader.h>
 #include <objc/runtime.h>
 
@@ -77,7 +78,7 @@ process_class:
                 [view advanceCursor:24];
             } else {
                 isa = [view uint32];
-            [view advanceCursor:12];
+                [view advanceCursor:12];
             }
 
             // Confirm struct is actually class_ro_t (and not class_rw_t).
@@ -218,15 +219,19 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     if (_header == nil) {
         // Get Mach-O header for the image
         VMUMachOHeader *header = nil;
-        BOOL hasHeaderFromSharedCacheWithPath = [VMUMemory_File respondsToSelector:@selector(headerFromSharedCacheWithPath:)];
-        if (hasHeaderFromSharedCacheWithPath) {
-            header = [VMUMemory_File headerFromSharedCacheWithPath:_path];
+        NSString *path = [self path];
+        VMUMemory_File *mappedCache = [[SCSymbolicator sharedInstance] mappedCache];
+        if (mappedCache != nil) {
+            uint64_t address = [mappedCache sharedCacheHeaderOffsetForPath:path];
+            NSString *name = [path lastPathComponent];
+            id timestamp = [mappedCache lastModifiedTimestamp];
+            header = [VMUHeader headerWithMemory:mappedCache address:address name:name path:path timestamp:timestamp];
             if (header != nil) {
                 _fromSharedCache = YES;
             }
         }
         if (header == nil) {
-            header = [VMUMemory_File headerWithPath:_path];
+            header = [VMUMemory_File headerWithPath:path];
         }
         if (![header isKindOfClass:[VMUMachOHeader class]]) {
             header = [[VMUHeader extractMachOHeadersFromHeader:header matchingArchitecture:[VMUArchitecture currentArchitecture] considerArchives:NO] lastObject];

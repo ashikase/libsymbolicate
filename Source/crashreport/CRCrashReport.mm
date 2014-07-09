@@ -304,10 +304,10 @@ static uint64_t uint64FromHexString(NSString *string) {
 }
 
 - (BOOL)symbolicate {
-    return [self symbolicateUsingSymbolMaps:nil];
+    return [self symbolicateUsingSharedCachePath:nil symbolMaps:nil];
 }
 
-- (BOOL)symbolicateUsingSymbolMaps:(NSDictionary *)symbolMaps {
+- (BOOL)symbolicateUsingSharedCachePath:(NSString *)sharedCachePath symbolMaps:(NSDictionary *)symbolMaps {
     CRException *exception = [self exception];
 
     // Prepare array of image start addresses for determining symbols of exception.
@@ -318,7 +318,12 @@ static uint64_t uint64FromHexString(NSString *string) {
     }
 
     // Create symbolicator.
-    SCSymbolicator *symbolicator = [[SCSymbolicator alloc] init];
+    SCSymbolicator *symbolicator = [SCSymbolicator sharedInstance];
+
+    // Set path of shared cache to use.
+    if (sharedCachePath != nil) {
+        [symbolicator setSharedCachePath:sharedCachePath];
+    }
 
     // Symbolicate the exception (if backtrace exists).
     for (CRStackFrame *stackFrame in stackFrames) {

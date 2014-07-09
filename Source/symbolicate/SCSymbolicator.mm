@@ -9,6 +9,49 @@
 
 @implementation SCSymbolicator
 
+@synthesize mappedCache = mappedCache_;
+@synthesize sharedCachePath = sharedCachePath_;
+
++ (instancetype)sharedInstance {
+    static dispatch_once_t once;
+    static id instance;
+    dispatch_once(&once, ^{
+        instance = [self new];
+    });
+    return instance;
+}
+
+- (void)dealloc {
+    [mappedCache_ release];
+    [sharedCachePath_ release];
+    [super dealloc];
+}
+
+- (void)setSharedCachePath:(NSString *)sharedCachePath {
+    if (![sharedCachePath_ isEqualToString:sharedCachePath]) {
+        [sharedCachePath_ release];
+        if (sharedCachePath != nil) {
+            sharedCachePath_ = [sharedCachePath copy];
+        } else if ([VMUDyld respondsToSelector:@selector(nativeSharedCachePath)]) {
+            sharedCachePath_ = [[VMUDyld nativeSharedCachePath] copy];
+        }
+
+        [mappedCache_ release];
+        if (sharedCachePath_ != nil) {
+            // FIXME: Must architecture be specified? If so, make customizable.
+            VMURange range = (VMURange){0, 0};
+            mappedCache_ = [[VMUMemory_File alloc] initWithPath:sharedCachePath_ fileRange:range mapToAddress:0 architecture:[VMUArchitecture currentArchitecture]];
+            if (mappedCache_ != nil) {
+                [mappedCache_ buildSharedCacheMap];
+            } else {
+                fprintf(stderr, "ERROR: Unable to map shared cache file '%s'.\n", [sharedCachePath_ UTF8String]);
+            }
+        } else {
+            mappedCache_ = nil;
+        }
+    }
+}
+
 - (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address inBinary:(SCBinaryInfo *)binaryInfo usingSymbolMap:(NSDictionary *)symbolMap {
     SCSymbolInfo *symbolInfo = nil;
 
@@ -44,10 +87,9 @@
             if (symbol != nil && ([symbol addressRange].location == (symbolAddress & ~1) || symbolAddress == 0)) {
                 name = [symbol name];
                 if ([name isEqualToString:@"<redacted>"]) {
-                    // FIXME: Why is this check here?
-                    BOOL hasHeaderFromSharedCacheWithPath = [VMUMemory_File respondsToSelector:@selector(headerFromSharedCacheWithPath:)];
-                    if (hasHeaderFromSharedCacheWithPath) {
-                        NSString *localName = nameForLocalSymbol([header address], [symbol addressRange].location);
+                    NSString *sharedCachePath = [self sharedCachePath];
+                    if (sharedCachePath != nil) {
+                        NSString *localName = nameForLocalSymbol(sharedCachePath, [header address], [symbol addressRange].location);
                         if (localName != nil) {
                             name = localName;
                         } else {

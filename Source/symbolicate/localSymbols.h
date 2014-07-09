@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-NSString *nameForLocalSymbol(uint64_t dylibOffset, uint64_t symbolAddress);
+NSString *nameForLocalSymbol(NSString *sharedCachePath, uint64_t dylibOffset, uint64_t symbolAddress);
 
 #ifdef __cplusplus
 }

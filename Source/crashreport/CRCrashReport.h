@@ -22,7 +22,7 @@ extern NSString * const kCrashReportDescription;
 - (NSString *)stringRepresentation;
 - (NSString *)stringRepresentation:(BOOL)asPropertyList;
 - (BOOL)symbolicate;
-- (BOOL)symbolicateUsingSymbolMaps:(NSDictionary *)symbolMaps;
+- (BOOL)symbolicateUsingSharedCachePath:(NSString *)sharedCachePath symbolMaps:(NSDictionary *)symbolMaps;
 @end
 
 /* vim: set ft=objc ff=unix sw=4 ts=4 tw=80 expandtab: */

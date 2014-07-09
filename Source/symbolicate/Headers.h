@@ -18,6 +18,7 @@ typedef struct _VMURange {
 @end
 @interface VMUHeader : NSObject
 + (id)extractMachOHeadersFromHeader:(id)header matchingArchitecture:(id)architecture considerArchives:(BOOL)archives;
++ (id)headerWithMemory:(id)memory address:(uint64_t)address name:(NSString *)name path:(NSString *)path timestamp:(id)timestamp;
 - (BOOL)isMachO64;
 @end
 @interface VMULoadCommand : NSObject
@@ -51,6 +52,8 @@ typedef struct _VMURange {
 + (id)headerWithPath:(id)path;
 - (void)buildSharedCacheMap;
 - (id)initWithPath:(id)path fileRange:(VMURange)range mapToAddress:(uint64_t)address architecture:(id)architecture;
+- (id)lastModifiedTimestamp;
+- (uint64_t)sharedCacheHeaderOffsetForPath:(id)path;
 @end
 @interface VMUMemory_Handle : VMUMemory_Base <VMUMemory> @end
 @interface VMUSourceInfo : VMUAddressRange <NSCopying>

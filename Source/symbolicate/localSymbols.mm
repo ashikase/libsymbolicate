@@ -38,11 +38,10 @@ typedef struct _dyld_cache_local_symbols_entry {
     uint32_t nlistCount;
 } dyld_cache_local_symbols_entry;
 
-NSString *nameForLocalSymbol(uint64_t dylibOffset, uint64_t symbolAddress) {
+NSString *nameForLocalSymbol(NSString *sharedCachePath, uint64_t dylibOffset, uint64_t symbolAddress) {
     NSString *name = nil;
 
-    NSString *cachePath = [VMUDyld nativeSharedCachePath];
-    int fd = open([cachePath UTF8String], O_RDONLY);
+    int fd = open([sharedCachePath UTF8String], O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "Failed to open the shared cache file.\n");
         return nil;
