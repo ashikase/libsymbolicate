@@ -4,8 +4,83 @@
 #import "SCMethodInfo.h"
 #import "SCSymbolInfo.h"
 
+#include <launch-cache/dsc_iterator.h>
+#include <objc/runtime.h>
+#include <string.h>
 #include "demangle.h"
 #include "localSymbols.h"
+
+#ifndef kCFCoreFoundationVersionNumber_iOS_6_0
+#define kCFCoreFoundationVersionNumber_iOS_7_0 793.00
+#endif
+
+#ifndef kCFCoreFoundationVersionNumber_iOS_7_0
+#define kCFCoreFoundationVersionNumber_iOS_7_0 847.20
+#endif
+
+#ifndef kCFCoreFoundationVersionNumber10_7
+#define kCFCoreFoundationVersionNumber10_7 635.00
+#endif
+
+#ifndef kCFCoreFoundationVersionNumber10_8
+#define kCFCoreFoundationVersionNumber10_8 744.00
+#endif
+
+// NOTE: VMUMemory_File's buildSharedCacheMap method does not support newer
+//       architectures (e.g. armv7s/arm64) on older versions of iOS and OS X.
+//       (The lack of support is not in buildSharedCacheMap itself, but in a
+//       function that it calls, dyld_shared_cache_iterate()).
+static void buildSharedCacheMap(VMUMemory_File *mappedCache) {
+    char *_mappedAddress = NULL;
+    object_getInstanceVariable(mappedCache, "_mappedAddress", (void **)&_mappedAddress);
+
+    // Determine architecture.
+    BOOL isArmv7s = (strncmp(_mappedAddress, "dyld_v1  armv7", 14) == 0);
+    BOOL isArm64 = (strcmp(_mappedAddress, "dyld_v1   arm64") == 0);
+
+    // Determine whether to use our own impl. or call Symbolication's version.
+    // NOTE: To prevent future issues, only override when absolutely necessary.
+    //       For arm64, it is necessary for all versions of OS X.
+    BOOL shouldOverride = YES;
+#if TARGET_OS_IPHONE
+    shouldOverride = ((isArmv7s && (kCFCoreFoundationVersionNumber < kCFCoreFoundationVersionNumber_iOS_6_0))
+        || (isArm64 && (kCFCoreFoundationVersionNumber < kCFCoreFoundationVersionNumber_iOS_7_0)));
+#else
+    // TODO: Test on iOS 10.6 to confirm that it works with arm shared cache.
+    // TODO: Confirm if arm64 override is needed for OS X 10.10.
+    shouldOverride = (kCFCoreFoundationVersionNumber < kCFCoreFoundationVersionNumber10_7)
+        || (isArmv7s && (kCFCoreFoundationVersionNumber < kCFCoreFoundationVersionNumber10_8))
+        || isArm64;
+#endif
+
+    if (shouldOverride) {
+        // Create a lookup table for addresses of dylibs in the cache.
+        // TODO: Blocks are supported from iOS 4 and OS X 10.6. In order to
+        //       support older versions, should switch to non-block iterator
+        //       (dyld_shared_cache_iterate_segments_nb()).
+        NSMutableDictionary *sharedCacheMap = [NSMutableDictionary new];
+        int error = dyld_shared_cache_iterate(_mappedAddress, 0,
+            ^(const dyld_shared_cache_dylib_info *dylibInfo, const dyld_shared_cache_segment_info *segInfo) {
+                if (!strncmp(segInfo->name, "__TEXT", 6)) {
+                    [sharedCacheMap setObject:[NSNumber numberWithLong:segInfo->fileOffset] forKey:[NSString stringWithUTF8String:dylibInfo->path]];
+                }
+            });
+
+        if (error == -1) {
+            NSException *exception = [NSException exceptionWithName:@"VMUMemory_File"
+                reason:@"Failed while attempting to iterate over shared cache segments" userInfo:nil];
+            @throw(exception);
+        }
+
+        // Update ivar of mapped cache object with the new value.
+        NSMutableDictionary *_sharedCacheMap = nil;
+        object_getInstanceVariable(mappedCache, "_sharedCacheMap", (void **)&_sharedCacheMap);
+        [_sharedCacheMap release];
+        object_setInstanceVariable(mappedCache, "_sharedCacheMap", sharedCacheMap);
+    } else {
+        [mappedCache buildSharedCacheMap];
+    }
+}
 
 @implementation SCSymbolicator
 
@@ -76,7 +151,7 @@
         VMURange range = (VMURange){0, 0};
         mappedCache_ = [[VMUMemory_File alloc] initWithPath:sharedCachePath fileRange:range mapToAddress:0 architecture:nil];
         if (mappedCache_ != nil) {
-            [mappedCache_ buildSharedCacheMap];
+            buildSharedCacheMap(mappedCache_);
         } else {
             fprintf(stderr, "ERROR: Unable to map shared cache file '%s'.\n", [sharedCachePath UTF8String]);
         }
