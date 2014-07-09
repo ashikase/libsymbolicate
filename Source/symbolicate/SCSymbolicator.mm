@@ -74,8 +74,7 @@
         // Map the cache.
         NSString *sharedCachePath = [self sharedCachePath];
         VMURange range = (VMURange){0, 0};
-        // FIXME: Must architecture be specified? If so, make customizable.
-        mappedCache_ = [[VMUMemory_File alloc] initWithPath:sharedCachePath fileRange:range mapToAddress:0 architecture:[VMUArchitecture currentArchitecture]];
+        mappedCache_ = [[VMUMemory_File alloc] initWithPath:sharedCachePath fileRange:range mapToAddress:0 architecture:nil];
         if (mappedCache_ != nil) {
             [mappedCache_ buildSharedCacheMap];
         } else {
