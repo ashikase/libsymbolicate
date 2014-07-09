@@ -48,6 +48,10 @@ struct arm
 
 };
 
+struct arm64
+{
+	typedef Pointer64<LittleEndian>		P;
+};
 
 
 
