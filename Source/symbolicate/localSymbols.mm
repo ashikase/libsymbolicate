@@ -79,21 +79,21 @@ NSString *nameForLocalSymbol(uint64_t dylibOffset, uint64_t symbolAddress) {
             if (entry->dylibOffset == dylibOffset) {
                 for (uint32_t j = 0; j < entry->nlistCount; ++j) {
                     if (is64Bit) {
-                        const struct nlist_64 *nlists = reinterpret_cast<const struct nlist_64 *>((uint32_t)localSymbols + localSymbols->nlistOffset);
+                        const struct nlist_64 *nlists = reinterpret_cast<const struct nlist_64 *>((uint64_t)localSymbols + localSymbols->nlistOffset);
                         const struct nlist_64 *n = &nlists[entry->nlistStartIndex + j];
                         if (n->n_value == symbolAddress) {
                             if (n->n_un.n_strx != 0 && (n->n_type & N_STAB) == 0) {
-                                const char *strings = reinterpret_cast<const char *>((uint32_t)localSymbols + localSymbols->stringsOffset);
+                                const char *strings = reinterpret_cast<const char *>((uint64_t)localSymbols + localSymbols->stringsOffset);
                                 name = [NSString stringWithCString:(strings + n->n_un.n_strx) encoding:NSASCIIStringEncoding];
                             }
                             break;
                         }
                     } else {
-                        const struct nlist *nlists = reinterpret_cast<const struct nlist *>((uint32_t)localSymbols + localSymbols->nlistOffset);
+                        const struct nlist *nlists = reinterpret_cast<const struct nlist *>((uint64_t)localSymbols + localSymbols->nlistOffset);
                         const struct nlist *n = &nlists[entry->nlistStartIndex + j];
                         if (n->n_value == symbolAddress) {
                             if (n->n_un.n_strx != 0 && (n->n_type & N_STAB) == 0) {
-                                const char *strings = reinterpret_cast<const char *>((uint32_t)localSymbols + localSymbols->stringsOffset);
+                                const char *strings = reinterpret_cast<const char *>((uint64_t)localSymbols + localSymbols->stringsOffset);
                                 name = [NSString stringWithCString:(strings + n->n_un.n_strx) encoding:NSASCIIStringEncoding];
                             }
                             break;

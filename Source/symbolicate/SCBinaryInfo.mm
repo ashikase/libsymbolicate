@@ -8,7 +8,7 @@ static uint64_t linkCommandOffsetForHeader(VMUMachOHeader *header, uint64_t link
     uint64_t cmdsize = 0;
     Ivar ivar = class_getInstanceVariable([VMULoadCommand class], "_command");
     for (VMULoadCommand *lc in [header loadCommands]) {
-        uint32_t cmd = (uint32_t)object_getIvar(lc, ivar);
+        uint64_t cmd = (uint64_t)object_getIvar(lc, ivar);
         if (cmd == linkCommand) {
             return [header isMachO64] ?
                 sizeof(mach_header_64) + cmdsize :

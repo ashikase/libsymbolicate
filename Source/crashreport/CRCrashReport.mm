@@ -54,10 +54,10 @@ static uint64_t uint64FromHexString(NSString *string) {
     if (self != nil) {
         // Attempt to load data as a property list.
         id plist = nil;
-        if (kCFCoreFoundationVersionNumber < kCFCoreFoundationVersionNumber_iOS_4_0) {
-            plist = [NSPropertyListSerialization propertyListFromData:data mutabilityOption:0 format:NULL errorDescription:NULL];
-        } else {
+        if ([NSPropertyListSerialization respondsToSelector:@selector(propertyListWithData:options:format:error:)]) {
             plist = [NSPropertyListSerialization propertyListWithData:data options:0 format:NULL error:NULL];
+        } else {
+            plist = [NSPropertyListSerialization propertyListFromData:data mutabilityOption:0 format:NULL errorDescription:NULL];
         }
 
         if (plist != nil) {
@@ -532,12 +532,12 @@ static uint64_t uint64FromHexString(NSString *string) {
         // Add thread title.
         NSString *name = [thread name];
         if (name != nil) {
-            NSString *string = [[NSString alloc] initWithFormat:@"Thread %d name:  %@", i, name];
+            NSString *string = [[NSString alloc] initWithFormat:@"Thread %lu name:  %@", (unsigned long)i, name];
             [description appendString:string];
             [description appendString:@"\n"];
             [string release];
         }
-        NSMutableString *string = [[NSMutableString alloc] initWithFormat:@"Thread %d", i];
+        NSMutableString *string = [[NSMutableString alloc] initWithFormat:@"Thread %lu", (unsigned long)i];
         if ([thread crashed]) {
             [string appendString:@" Crashed"];
         }
@@ -564,7 +564,7 @@ static uint64_t uint64FromHexString(NSString *string) {
             if (symbolInfo != nil) {
                 NSString *sourcePath = [symbolInfo sourcePath];
                 if (sourcePath != nil) {
-                    comment = [[NSString alloc] initWithFormat:@"\t// %@:%u", sourcePath, [symbolInfo sourceLineNumber]];
+                    comment = [[NSString alloc] initWithFormat:@"\t// %@:%lu", sourcePath, (unsigned long)[symbolInfo sourceLineNumber]];
                 } else {
                     NSString *name = [symbolInfo name];
                     if (name != nil) {
@@ -573,8 +573,8 @@ static uint64_t uint64FromHexString(NSString *string) {
                 }
             }
 
-            NSString *string = [[NSString alloc] initWithFormat:@"%-6u%s%-30s\t%-32s%@",
-                        [stackFrame depth], [bi isBlamable] ? "+ " : "  ", [binaryName UTF8String],
+            NSString *string = [[NSString alloc] initWithFormat:@"%-6lu%s%-30s\t%-32s%@",
+                        (unsigned long)[stackFrame depth], [bi isBlamable] ? "+ " : "  ", [binaryName UTF8String],
                         [addressString UTF8String], comment ?: @""];
             [addressString release];
             [comment release];
