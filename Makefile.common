@@ -13,10 +13,10 @@ libsymbolicate_OBJC_FILES = \
     Source/crashreport/CRThread.mm \
     Source/symbolicate/SCBinaryInfo.mm \
     Source/symbolicate/SCMethodInfo.mm \
+    Source/symbolicate/SCSymbolicator.mm \
     Source/symbolicate/SCSymbolInfo.mm \
     Source/symbolicate/demangle.mm \
-    Source/symbolicate/localSymbols.mm \
-    Source/symbolicate/symbolicate.mm
+    Source/symbolicate/localSymbols.mm
 libsymbolicate_LDFLAGS = -lbz2 -licucore
 libsymbolicate_PRIVATE_FRAMEWORKS = Symbolication
 ADDITIONAL_CFLAGS = -DPKG_ID=\"$(PKG_ID)\" -ILibraries -ISource -ISource/symbolicate
@@ -33,7 +33,6 @@ after-stage::
 	- cp $(THEOS_PROJECT_DIR)/Source/symbolicate/SC*.h $(THEOS_STAGING_DIR)/usr/include/libsymbolicate/
 	- cp $(THEOS_PROJECT_DIR)/Source/symbolicate/demangle.h $(THEOS_STAGING_DIR)/usr/include/libsymbolicate/
 	- cp $(THEOS_PROJECT_DIR)/Source/symbolicate/localSymbols.h $(THEOS_STAGING_DIR)/usr/include/libsymbolicate/
-	- cp $(THEOS_PROJECT_DIR)/Source/symbolicate/symbolicate.h $(THEOS_STAGING_DIR)/usr/include/libsymbolicate/
 
 distclean: clean
 	- rm -f $(THEOS_PROJECT_DIR)/$(APP_ID)*.deb

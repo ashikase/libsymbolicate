@@ -1,24 +1,4 @@
-/*
-
-symbolicate.m ... Symbolicate a crash log.
-Copyright (C) 2009  KennyTM~ <kennytm@gmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-*/
-
-#import "symbolicate.h"
+#import "SCSymbolicator.h"
 
 #import "SCBinaryInfo.h"
 #import "SCMethodInfo.h"
@@ -27,13 +7,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "demangle.h"
 #include "localSymbols.h"
 
-SCSymbolInfo *fetchSymbolInfo(SCBinaryInfo *bi, uint64_t address, NSDictionary *symbolMap) {
+@implementation SCSymbolicator
+
+- (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address inBinary:(SCBinaryInfo *)binaryInfo usingSymbolMap:(NSDictionary *)symbolMap {
     SCSymbolInfo *symbolInfo = nil;
 
-    VMUMachOHeader *header = [bi header];
+    VMUMachOHeader *header = [binaryInfo header];
     if (header != nil) {
-        address += [bi slide];
-        VMUSymbolOwner *owner = [bi owner];
+        address += [binaryInfo slide];
+        VMUSymbolOwner *owner = [binaryInfo owner];
         VMUSourceInfo *srcInfo = [owner sourceInfoForAddress:address];
         if (srcInfo != nil) {
             // Store source file name and line number.
@@ -44,7 +26,7 @@ SCSymbolInfo *fetchSymbolInfo(SCBinaryInfo *bi, uint64_t address, NSDictionary *
             // Determine symbol address.
             // NOTE: Only possible if LC_FUNCTION_STARTS exists in the binary.
             uint64_t symbolAddress = 0;
-            NSArray *symbolAddresses = [bi symbolAddresses];
+            NSArray *symbolAddresses = [binaryInfo symbolAddresses];
             NSUInteger count = [symbolAddresses count];
             if (count != 0) {
                 NSNumber *targetAddress = [[NSNumber alloc] initWithUnsignedLongLong:address];
@@ -69,7 +51,7 @@ SCSymbolInfo *fetchSymbolInfo(SCBinaryInfo *bi, uint64_t address, NSDictionary *
                         if (localName != nil) {
                             name = localName;
                         } else {
-                            fprintf(stderr, "Unable to determine name for: %s, 0x%08llx\n", [[bi path] UTF8String], [symbol addressRange].location);
+                            fprintf(stderr, "Unable to determine name for: %s, 0x%08llx\n", [[binaryInfo path] UTF8String], [symbol addressRange].location);
                         }
                     }
                 }
@@ -87,11 +69,11 @@ SCSymbolInfo *fetchSymbolInfo(SCBinaryInfo *bi, uint64_t address, NSDictionary *
                         break;
                     }
                 }
-            } else if (![bi isEncrypted]) {
+            } else if (![binaryInfo isEncrypted]) {
                 // Determine methods, attempt to match with symbol address.
                 if (symbolAddress != 0) {
                     SCMethodInfo *method = nil;
-                    NSArray *methods = [bi methods];
+                    NSArray *methods = [binaryInfo methods];
                     count = [methods count];
                     if (count != 0) {
                         SCMethodInfo *targetMethod = [SCMethodInfo new];
@@ -125,5 +107,7 @@ SCSymbolInfo *fetchSymbolInfo(SCBinaryInfo *bi, uint64_t address, NSDictionary *
 
     return symbolInfo;
 }
+
+@end
 
 /* vim: set ft=objcpp ff=unix sw=4 ts=4 tw=80 expandtab: */

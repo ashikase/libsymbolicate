@@ -6,8 +6,8 @@
 #import "CRStackFrame.h"
 #import "CRThread.h"
 #import "SCBinaryInfo.h"
+#import "SCSymbolicator.h"
 #import "SCSymbolInfo.h"
-#import "symbolicate.h"
 
 #include <notify.h>
 #include "common.h"
@@ -317,6 +317,9 @@ static uint64_t uint64FromHexString(NSString *string) {
         imageAddresses = [[[self binaryImages] allKeys] sortedArrayUsingSelector:@selector(compare:)];
     }
 
+    // Create symbolicator.
+    SCSymbolicator *symbolicator = [[SCSymbolicator alloc] init];
+
     // Symbolicate the exception (if backtrace exists).
     for (CRStackFrame *stackFrame in stackFrames) {
         // Determine start address for this frame.
@@ -329,15 +332,18 @@ static uint64_t uint64FromHexString(NSString *string) {
                 }
             }
         }
-        [self symbolicateStackFrame:stackFrame usingSymbolMaps:symbolMaps];
+        [self symbolicateStackFrame:stackFrame symbolicator:symbolicator symbolMaps:symbolMaps];
     }
 
     // Symbolicate the threads.
     for (CRThread *thread in [self threads]) {
         for (CRStackFrame *stackFrame in [thread stackFrames]) {
-            [self symbolicateStackFrame:stackFrame usingSymbolMaps:symbolMaps];
+            [self symbolicateStackFrame:stackFrame symbolicator:symbolicator symbolMaps:symbolMaps];
         }
     }
+
+    // Clean-up.
+    [symbolicator release];
 
     // Update the description in order to include symbol info.
     [self updateDescription];
@@ -506,13 +512,13 @@ static uint64_t uint64FromHexString(NSString *string) {
     }
 }
 
-- (void)symbolicateStackFrame:(CRStackFrame *)stackFrame usingSymbolMaps:(NSDictionary *)symbolMaps {
+- (void)symbolicateStackFrame:(CRStackFrame *)stackFrame symbolicator:(SCSymbolicator *)symbolicator symbolMaps:(NSDictionary *)symbolMaps {
     // Retrieve symbol info from related binary image.
     NSNumber *imageAddress = [NSNumber numberWithUnsignedLongLong:[stackFrame imageAddress]];
     CRBinaryImage *bi = [[self binaryImages] objectForKey:imageAddress];
     if (bi != nil) {
         NSDictionary *symbolMap = [symbolMaps objectForKey:[bi path]];
-        SCSymbolInfo *symbolInfo = fetchSymbolInfo([bi binaryInfo], [stackFrame address], symbolMap);
+        SCSymbolInfo *symbolInfo = [symbolicator symbolInfoForAddress:[stackFrame address] inBinary:[bi binaryInfo] usingSymbolMap:symbolMap];
         [stackFrame setSymbolInfo:symbolInfo];
     }
 }
