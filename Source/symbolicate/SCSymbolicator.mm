@@ -268,7 +268,7 @@ static void buildSharedCacheMap(VMUMemory_File *mappedCache) {
         }
     }
 
-    return symbolInfo;
+    return [symbolInfo autorelease];
 }
 
 @end
