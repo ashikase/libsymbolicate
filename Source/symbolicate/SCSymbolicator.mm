@@ -94,6 +94,7 @@ static void buildSharedCacheMap(VMUMemory_File *mappedCache) {
 @implementation SCSymbolicator
 
 @synthesize architecture = architecture_;
+@synthesize symbolMaps = symbolMaps_;
 @synthesize systemRoot = systemRoot_;
 @synthesize mappedCache = mappedCache_;
 
@@ -108,6 +109,7 @@ static void buildSharedCacheMap(VMUMemory_File *mappedCache) {
 
 - (void)dealloc {
     [architecture_ release];
+    [symbolMaps_ release];
     [systemRoot_ release];
     [mappedCache_ release];
     [super dealloc];
@@ -168,7 +170,7 @@ static void buildSharedCacheMap(VMUMemory_File *mappedCache) {
     return mappedCache_;
 }
 
-- (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address inBinary:(SCBinaryInfo *)binaryInfo usingSymbolMap:(NSDictionary *)symbolMap {
+- (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address inBinary:(SCBinaryInfo *)binaryInfo {
     SCSymbolInfo *symbolInfo = nil;
 
     VMUMachOHeader *header = [binaryInfo header];
@@ -218,39 +220,42 @@ static void buildSharedCacheMap(VMUMemory_File *mappedCache) {
                 //       names, so we attempt to do it ourselves.
                 name = demangle(name);
                 offset = address - [symbol addressRange].location;
-            } else if (symbolMap != nil) {
-                for (NSNumber *number in [[[symbolMap allKeys] sortedArrayUsingSelector:@selector(compare:)] reverseObjectEnumerator]) {
-                    uint64_t mapSymbolAddress = [number unsignedLongLongValue];
-                    if (address > mapSymbolAddress) {
-                        name = demangle([symbolMap objectForKey:number]);
-                        offset = address - mapSymbolAddress;
-                        break;
-                    }
-                }
-            } else if (![binaryInfo isEncrypted]) {
-                // Determine methods, attempt to match with symbol address.
-                if (symbolAddress != 0) {
-                    SCMethodInfo *method = nil;
-                    NSArray *methods = [binaryInfo methods];
-                    count = [methods count];
-                    if (count != 0) {
-                        SCMethodInfo *targetMethod = [SCMethodInfo new];
-                        [targetMethod setAddress:address];
-                        CFIndex matchIndex = CFArrayBSearchValues((CFArrayRef)methods, CFRangeMake(0, count), targetMethod, (CFComparatorFunction)reversedCompareMethodInfos, NULL);
-                        [targetMethod release];
-
-                        if (matchIndex < (CFIndex)count) {
-                            method = [methods objectAtIndex:matchIndex];
+            } else {
+                NSDictionary *symbolMap = [[self symbolMaps] objectForKey:[binaryInfo path]];
+                if (symbolMap != nil) {
+                    for (NSNumber *number in [[[symbolMap allKeys] sortedArrayUsingSelector:@selector(compare:)] reverseObjectEnumerator]) {
+                        uint64_t mapSymbolAddress = [number unsignedLongLongValue];
+                        if (address > mapSymbolAddress) {
+                            name = demangle([symbolMap objectForKey:number]);
+                            offset = address - mapSymbolAddress;
+                            break;
                         }
                     }
+                } else if (![binaryInfo isEncrypted]) {
+                    // Determine methods, attempt to match with symbol address.
+                    if (symbolAddress != 0) {
+                        SCMethodInfo *method = nil;
+                        NSArray *methods = [binaryInfo methods];
+                        count = [methods count];
+                        if (count != 0) {
+                            SCMethodInfo *targetMethod = [SCMethodInfo new];
+                            [targetMethod setAddress:address];
+                            CFIndex matchIndex = CFArrayBSearchValues((CFArrayRef)methods, CFRangeMake(0, count), targetMethod, (CFComparatorFunction)reversedCompareMethodInfos, NULL);
+                            [targetMethod release];
 
-                    if (method != nil && [method address] >= symbolAddress) {
-                        name = [method name];
-                        offset = address - [method address];
-                    } else {
-                        uint64_t textStart = [[header segmentNamed:@"__TEXT"] vmaddr];
-                        name = [NSString stringWithFormat:@"0x%08llx", (symbolAddress - textStart)];
-                        offset = address - symbolAddress;
+                            if (matchIndex < (CFIndex)count) {
+                                method = [methods objectAtIndex:matchIndex];
+                            }
+                        }
+
+                        if (method != nil && [method address] >= symbolAddress) {
+                            name = [method name];
+                            offset = address - [method address];
+                        } else {
+                            uint64_t textStart = [[header segmentNamed:@"__TEXT"] vmaddr];
+                            name = [NSString stringWithFormat:@"0x%08llx", (symbolAddress - textStart)];
+                            offset = address - symbolAddress;
+                        }
                     }
                 }
             }

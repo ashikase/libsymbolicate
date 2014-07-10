@@ -342,6 +342,11 @@ static uint64_t uint64FromHexString(NSString *string) {
         [symbolicator setSystemRoot:systemRoot];
     }
 
+    // Set symbol maps to use.
+    if (symbolMaps != nil) {
+        [symbolicator setSymbolMaps:symbolMaps];
+    }
+
     // Symbolicate the exception (if backtrace exists).
     for (CRStackFrame *stackFrame in stackFrames) {
         // Determine start address for this frame.
@@ -354,13 +359,13 @@ static uint64_t uint64FromHexString(NSString *string) {
                 }
             }
         }
-        [self symbolicateStackFrame:stackFrame symbolicator:symbolicator symbolMaps:symbolMaps];
+        [self symbolicateStackFrame:stackFrame symbolicator:symbolicator];
     }
 
     // Symbolicate the threads.
     for (CRThread *thread in [self threads]) {
         for (CRStackFrame *stackFrame in [thread stackFrames]) {
-            [self symbolicateStackFrame:stackFrame symbolicator:symbolicator symbolMaps:symbolMaps];
+            [self symbolicateStackFrame:stackFrame symbolicator:symbolicator];
         }
     }
 
@@ -534,13 +539,12 @@ static uint64_t uint64FromHexString(NSString *string) {
     }
 }
 
-- (void)symbolicateStackFrame:(CRStackFrame *)stackFrame symbolicator:(SCSymbolicator *)symbolicator symbolMaps:(NSDictionary *)symbolMaps {
+- (void)symbolicateStackFrame:(CRStackFrame *)stackFrame symbolicator:(SCSymbolicator *)symbolicator {
     // Retrieve symbol info from related binary image.
     NSNumber *imageAddress = [NSNumber numberWithUnsignedLongLong:[stackFrame imageAddress]];
     CRBinaryImage *bi = [[self binaryImages] objectForKey:imageAddress];
     if (bi != nil) {
-        NSDictionary *symbolMap = [symbolMaps objectForKey:[bi path]];
-        SCSymbolInfo *symbolInfo = [symbolicator symbolInfoForAddress:[stackFrame address] inBinary:[bi binaryInfo] usingSymbolMap:symbolMap];
+        SCSymbolInfo *symbolInfo = [symbolicator symbolInfoForAddress:[stackFrame address] inBinary:[bi binaryInfo]];
         [stackFrame setSymbolInfo:symbolInfo];
     }
 }
