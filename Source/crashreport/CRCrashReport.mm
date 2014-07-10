@@ -81,7 +81,8 @@ static uint64_t uint64FromHexString(NSString *string) {
             }
         } else {
             // Assume file is of IPS format.
-            if (NSClassFromString(@"NSJSONSerialization") == nil) {
+            Class $NSJSONSerialization = NSClassFromString(@"NSJSONSerialization");
+            if ($NSJSONSerialization == nil) {
                 fprintf(stderr, "ERROR: This version of iOS does not include NSJSONSerialization, which is required for parsing IPS files.\n");
                 [self release];
                 return nil;
@@ -93,7 +94,7 @@ static uint64_t uint64FromHexString(NSString *string) {
                 NSString *header = [string substringToIndex:range.location];
                 NSString *description = [string substringFromIndex:(range.location + 1)];
                 NSError *error = nil;
-                id object = [NSJSONSerialization JSONObjectWithData:[header dataUsingEncoding:NSUTF8StringEncoding] options:0 error:&error];
+                id object = [$NSJSONSerialization JSONObjectWithData:[header dataUsingEncoding:NSUTF8StringEncoding] options:0 error:&error];
                 if (object != nil) {
                     if ([object isKindOfClass:[NSDictionary class]]) {
                         NSMutableDictionary *dict = [[NSMutableDictionary alloc] initWithDictionary:object];
@@ -292,13 +293,20 @@ static uint64_t uint64FromHexString(NSString *string) {
         }
     } else {
         // Generate IPS string.
+        Class $NSJSONSerialization = NSClassFromString(@"NSJSONSerialization");
+        if ($NSJSONSerialization == nil) {
+            fprintf(stderr, "ERROR: This version of iOS does not include NSJSONSerialization, which is required for creating IPS files.\n");
+            [self release];
+            return nil;
+        }
+
         NSDictionary *properties = [self properties];
         NSMutableDictionary *header = [[NSMutableDictionary alloc] initWithDictionary:properties];
         [header removeObjectForKey:kCrashReportDescription];
         NSString *description = [properties objectForKey:kCrashReportDescription];
 
         NSError *error = nil;
-        NSData *data = [NSJSONSerialization dataWithJSONObject:header options:0 error:&error];
+        NSData *data = [$NSJSONSerialization dataWithJSONObject:header options:0 error:&error];
         if (data != nil) {
             NSString *string = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
             result = [[NSString alloc] initWithFormat:@"%@\n%@", string, description];
