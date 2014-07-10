@@ -145,16 +145,6 @@ static void buildSharedCacheMap(VMUMemory_File *mappedCache) {
     }
 }
 
-- (NSString *)sharedCachePath {
-    NSString *sharedCachePath = @"/System/Library/Caches/com.apple.dyld/dyld_shared_cache_";
-
-    // Prepend the system root.
-    sharedCachePath = [[self systemRoot] stringByAppendingPathComponent:sharedCachePath];
-
-    // Add the architecture and return.
-    return [sharedCachePath stringByAppendingString:[self architecture]];
-}
-
 - (VMUMemory_File *)mappedCache {
     if (mappedCache_ == nil) {
         // Map the cache.
@@ -168,6 +158,16 @@ static void buildSharedCacheMap(VMUMemory_File *mappedCache) {
         }
     }
     return mappedCache_;
+}
+
+- (NSString *)sharedCachePath {
+    NSString *sharedCachePath = @"/System/Library/Caches/com.apple.dyld/dyld_shared_cache_";
+
+    // Prepend the system root.
+    sharedCachePath = [[self systemRoot] stringByAppendingPathComponent:sharedCachePath];
+
+    // Add the architecture and return.
+    return [sharedCachePath stringByAppendingString:[self architecture]];
 }
 
 - (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address inBinary:(SCBinaryInfo *)binaryInfo {
