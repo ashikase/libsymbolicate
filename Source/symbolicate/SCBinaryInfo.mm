@@ -252,6 +252,7 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
         if (header != nil) {
             uint64_t textStart = [[header segmentNamed:@"__TEXT"] vmaddr];
             _slide = textStart - _address;
+            // NOTE: The following method is quite slow.
             _owner = [[VMUSymbolExtractor extractSymbolOwnerFromHeader:header] retain];
             _encrypted = isEncrypted(header);
             _executable = ([header fileType] == MH_EXECUTE);
@@ -269,6 +270,8 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     return _methods;
 }
 
+// NOTE: The symbol addresses array is sorted greatest to least so that it can
+//       be used with CFArrayBSearchValues().
 - (NSArray *)symbolAddresses {
     if (_symbolAddresses == nil) {
         _symbolAddresses = [symbolAddressesForImageWithHeader([self header]) retain];
