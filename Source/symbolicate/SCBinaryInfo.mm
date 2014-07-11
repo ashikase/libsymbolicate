@@ -206,30 +206,37 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 
 @implementation SCBinaryInfo
 
-@synthesize header = _header;
-@synthesize methods = _methods;
-@synthesize symbolAddresses = _symbolAddresses;
+@synthesize address = address_;
+@synthesize encrypted = encrypted_;
+@synthesize executable = executable_;
+@synthesize fromSharedCache = fromSharedCache_;
+@synthesize header = header_;
+@synthesize methods = methods_;
+@synthesize owner = owner_;
+@synthesize path = path_;
+@synthesize slide = slide_;
+@synthesize symbolAddresses = symbolAddresses_;
 
 - (id)initWithPath:(NSString *)path address:(uint64_t)address {
     self = [super init];
     if (self != nil) {
-        _path = [path copy];
-        _address = address;
+        path_ = [path copy];
+        address_ = address;
     }
     return self;
 }
 
 - (void)dealloc {
-    [_header release];
-    [_methods release];
-    [_owner release];
-    [_path release];
-    [_symbolAddresses release];
+    [header_ release];
+    [methods_ release];
+    [owner_ release];
+    [path_ release];
+    [symbolAddresses_ release];
     [super dealloc];
 }
 
 - (VMUMachOHeader *)header {
-    if (_header == nil) {
+    if (header_ == nil) {
         // Get Mach-O header for the image
         VMUMachOHeader *header = nil;
         NSString *path = [self path];
@@ -240,7 +247,7 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
             id timestamp = [mappedCache lastModifiedTimestamp];
             header = [VMUHeader headerWithMemory:mappedCache address:address name:name path:path timestamp:timestamp];
             if (header != nil) {
-                _fromSharedCache = YES;
+                fromSharedCache_ = YES;
             }
         }
         if (header == nil) {
@@ -251,32 +258,32 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
         }
         if (header != nil) {
             uint64_t textStart = [[header segmentNamed:@"__TEXT"] vmaddr];
-            _slide = textStart - _address;
+            slide_ = textStart - [self address];
             // NOTE: The following method is quite slow.
-            _owner = [[VMUSymbolExtractor extractSymbolOwnerFromHeader:header] retain];
-            _encrypted = isEncrypted(header);
-            _executable = ([header fileType] == MH_EXECUTE);
+            owner_ = [[VMUSymbolExtractor extractSymbolOwnerFromHeader:header] retain];
+            encrypted_ = isEncrypted(header);
+            executable_ = ([header fileType] == MH_EXECUTE);
 
-            _header = [header retain];
+            header_ = [header retain];
         }
     }
-    return _header;
+    return header_;
 }
 
 - (NSArray *)methods {
-    if (_methods == nil) {
-        _methods = [methodsForImageWithHeader([self header]) retain];
+    if (methods_ == nil) {
+        methods_ = [methodsForImageWithHeader([self header]) retain];
     }
-    return _methods;
+    return methods_;
 }
 
 // NOTE: The symbol addresses array is sorted greatest to least so that it can
 //       be used with CFArrayBSearchValues().
 - (NSArray *)symbolAddresses {
-    if (_symbolAddresses == nil) {
-        _symbolAddresses = [symbolAddressesForImageWithHeader([self header]) retain];
+    if (symbolAddresses_ == nil) {
+        symbolAddresses_ = [symbolAddressesForImageWithHeader([self header]) retain];
     }
-    return _symbolAddresses;
+    return symbolAddresses_;
 }
 
 @end
