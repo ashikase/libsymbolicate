@@ -326,19 +326,20 @@ static uint64_t uint64FromHexString(NSString *string) {
 
 - (BOOL)symbolicateUsingSystemRoot:(NSString *)systemRoot symbolMaps:(NSDictionary *)symbolMaps {
     CRException *exception = [self exception];
+    NSDictionary *binaryImages = [self binaryImages];
 
     // Prepare array of image start addresses for determining symbols of exception.
     NSArray *imageAddresses = nil;
     NSArray *stackFrames = [exception stackFrames];
     if ([stackFrames count] > 0) {
-        imageAddresses = [[[self binaryImages] allKeys] sortedArrayUsingSelector:@selector(compare:)];
+        imageAddresses = [[binaryImages allKeys] sortedArrayUsingSelector:@selector(compare:)];
     }
 
     // Create symbolicator.
     SCSymbolicator *symbolicator = [SCSymbolicator sharedInstance];
 
     // Set architecture to use.
-    for (CRBinaryImage *binaryImage in [[self binaryImages] allValues]) {
+    for (CRBinaryImage *binaryImage in [binaryImages allValues]) {
         if ([[binaryImage path] isEqualToString:@"/usr/lib/dyld"]) {
             [symbolicator setArchitecture:[binaryImage architecture]];
             break;
