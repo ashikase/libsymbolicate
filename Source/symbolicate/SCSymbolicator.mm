@@ -170,6 +170,16 @@ static void buildSharedCacheMap(VMUMemory_File *mappedCache) {
     return [sharedCachePath stringByAppendingString:[self architecture]];
 }
 
+CFComparisonResult reverseCompareUnsignedLongLong(CFNumberRef a, CFNumberRef b) {
+    unsigned long long aValue;
+    unsigned long long bValue;
+    CFNumberGetValue(a, kCFNumberLongLongType, &aValue);
+    CFNumberGetValue(b, kCFNumberLongLongType, &bValue);
+    if (bValue < aValue) return kCFCompareLessThan;
+    if (bValue > aValue) return kCFCompareGreaterThan;
+    return kCFCompareEqualTo;
+}
+
 - (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address inBinary:(SCBinaryInfo *)binaryInfo {
     SCSymbolInfo *symbolInfo = nil;
 
@@ -191,7 +201,7 @@ static void buildSharedCacheMap(VMUMemory_File *mappedCache) {
             NSUInteger count = [symbolAddresses count];
             if (count != 0) {
                 NSNumber *targetAddress = [[NSNumber alloc] initWithUnsignedLongLong:address];
-                CFIndex matchIndex = CFArrayBSearchValues((CFArrayRef)symbolAddresses, CFRangeMake(0, count), targetAddress, (CFComparatorFunction)reversedCompareNSNumber, NULL);
+                CFIndex matchIndex = CFArrayBSearchValues((CFArrayRef)symbolAddresses, CFRangeMake(0, count), targetAddress, (CFComparatorFunction)reverseCompareUnsignedLongLong, NULL);
                 [targetAddress release];
                 if (matchIndex < (CFIndex)count) {
                     symbolAddress = [[symbolAddresses objectAtIndex:matchIndex] unsignedLongLongValue];

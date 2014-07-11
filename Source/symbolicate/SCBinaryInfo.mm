@@ -170,12 +170,8 @@ process_class:
     return methods;
 }
 
-CFComparisonResult reversedCompareNSNumber(NSNumber *a, NSNumber *b) {
-    return [b compare:a];
-}
-
 static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
-    NSMutableArray *addresses = [NSMutableArray array];
+    NSMutableArray *addresses = [NSMutableArray new];
 
     uint64_t offset = linkCommandOffsetForHeader(header, LC_FUNCTION_STARTS);
     if (offset != 0) {
@@ -186,6 +182,8 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
             [view setCursor:dataoff];
             uint64_t offset;
             uint64_t symbolAddress = [[header segmentNamed:@"__TEXT"] vmaddr];
+
+            // FIXME: This is slow.
             while ((offset = [view ULEB128])) {
                 symbolAddress += offset;
                 [addresses addObject:[NSNumber numberWithUnsignedLongLong:symbolAddress]];
@@ -196,8 +194,14 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
         }
     }
 
-    [addresses sortUsingFunction:(NSInteger (*)(id, id, void *))reversedCompareNSNumber context:NULL];
-    return addresses;
+    NSArray *sortedAddresses = [addresses sortedArrayUsingFunction:(NSInteger (*)(id, id, void *))CFNumberCompare context:NULL];
+    [addresses release];
+
+    NSMutableArray *reverseSortedAddresses = [NSMutableArray array];
+    for (NSNumber *number in [sortedAddresses reverseObjectEnumerator]) {
+        [reverseSortedAddresses addObject:number];
+    }
+    return reverseSortedAddresses;
 }
 
 @implementation SCBinaryInfo

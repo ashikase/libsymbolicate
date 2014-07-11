@@ -25,6 +25,4 @@
 - (id)initWithPath:(NSString *)path address:(uint64_t)address;
 @end
 
-CFComparisonResult reversedCompareNSNumber(NSNumber *a, NSNumber *b);
-
 /* vim: set ft=objcpp ff=unix sw=4 ts=4 tw=80 expandtab: */
