@@ -378,9 +378,6 @@ static uint64_t uint64FromHexString(NSString *string) {
         }
     }
 
-    // Clean-up.
-    [symbolicator release];
-
     // Update the description in order to include symbol info.
     [self updateDescription];
 
