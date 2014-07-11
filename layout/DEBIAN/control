@@ -1,7 +1,7 @@
 Package: jp.ashikase.libsymbolicate
 Name: libsymbolicate
-Version: 1.0.0~b1
-Description: Library to parse and symbolicate crash logs.
+Version: 1.0.0
+Description: Library to parse and symbolicate crash reports.
     This library is based upon CrashReporter by kennytm.
 Architecture: iphoneos-arm
 Pre-Depends: firmware (>=3.0)
