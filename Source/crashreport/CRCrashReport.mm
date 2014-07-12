@@ -558,10 +558,15 @@ static uint64_t uint64FromHexString(NSString *string) {
 - (void)updateDescription {
     NSMutableString *description = [NSMutableString new];
 
+    // Add process information.
     [description appendString:[[self processInfo] componentsJoinedByString:@"\n"]];
-    [description appendString:@"\n"];
 
+    // Add exception.
     NSDictionary *binaryImages = [self binaryImages];
+    [description appendString:@"Last Exception Backtrace:\n"];
+    [description appendString:[[self exception] stringRepresentationUsingBinaryImages:binaryImages]];
+
+    // Add threads.
     NSArray *threads = [self threads];
     NSUInteger count = [threads count];
     for (NSUInteger i = 0; i < count; ++i) {
@@ -585,43 +590,7 @@ static uint64_t uint64FromHexString(NSString *string) {
         [string release];
 
         // Add stack frames of backtrace.
-        for (CRStackFrame *stackFrame in [thread stackFrames]) {
-            uint64_t address = [stackFrame address];
-            uint64_t imageAddress = [stackFrame imageAddress];
-            NSString *addressString = [[NSString alloc] initWithFormat:@"0x%08llx 0x%08llx + 0x%llx",
-                        address, imageAddress, address - imageAddress];
-
-            NSNumber *key = [NSNumber numberWithUnsignedLongLong:imageAddress];
-            CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
-            NSString *binaryName = (binaryImage == nil) ?
-                @"???" :
-                [[[binaryImage path] lastPathComponent] stringByAppendingString:([[binaryImage binaryInfo] isExecutable] ? @" (*)" : @"")];
-
-            NSString *comment = nil;
-            SCSymbolInfo *symbolInfo = [stackFrame symbolInfo];
-            if (symbolInfo != nil) {
-                NSString *sourcePath = [symbolInfo sourcePath];
-                if (sourcePath != nil) {
-                    comment = [[NSString alloc] initWithFormat:@"\t// %@:%lu", sourcePath, (unsigned long)[symbolInfo sourceLineNumber]];
-                } else {
-                    NSString *name = [symbolInfo name];
-                    if (name != nil) {
-                        comment = [[NSString alloc] initWithFormat:@"\t// %@ + 0x%llx", name, [symbolInfo offset]];
-                    }
-                }
-            }
-
-            NSString *string = [[NSString alloc] initWithFormat:@"%-6lu%s%-30s\t%-32s%@",
-                        (unsigned long)[stackFrame depth], [binaryImage isBlamable] ? "+ " : "  ", [binaryName UTF8String],
-                        [addressString UTF8String], comment ?: @""];
-            [addressString release];
-            [comment release];
-
-            [description appendString:string];
-            [description appendString:@"\n"];
-            [string release];
-        }
-        [description appendString:@"\n"];
+        [description appendString:[thread stringRepresentationUsingBinaryImages:binaryImages]];
     }
 
     // Add register state.
