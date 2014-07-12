@@ -8,7 +8,7 @@ Pre-Depends: firmware (>=3.0)
 Depiction: http://moreinfo.thebigboss.org/moreinfo/depiction.php?file=libsymbolicateData
 Homepage: http://github.com/ashikase/libsymbolicate
 Maintainer: BigBoss <bigboss@thebigboss.org>
-Author: Lance Fetters (ashikase) <gaizin@gmail.com>
+Author: Lance Fetters (ashikase) <support@ashikase.com>
 Sponsor: thebigboss.org <http://thebigboss.org>
 Section: Development
 Tag: role::developer
