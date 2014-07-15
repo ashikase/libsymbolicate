@@ -85,7 +85,6 @@
         [string appendString:@"\n"];
         [line release];
     }
-    [string appendString:@"\n"];
 
     return string;
 }

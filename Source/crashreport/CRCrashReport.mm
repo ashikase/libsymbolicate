@@ -565,6 +565,7 @@ static uint64_t uint64FromHexString(NSString *string) {
     NSDictionary *binaryImages = [self binaryImages];
     [description appendString:@"Last Exception Backtrace:\n"];
     [description appendString:[[self exception] stringRepresentationUsingBinaryImages:binaryImages]];
+    [description appendString:@"\n"];
 
     // Add threads.
     NSArray *threads = [self threads];
@@ -591,6 +592,7 @@ static uint64_t uint64FromHexString(NSString *string) {
 
         // Add stack frames of backtrace.
         [description appendString:[thread stringRepresentationUsingBinaryImages:binaryImages]];
+        [description appendString:@"\n"];
     }
 
     // Add register state.
