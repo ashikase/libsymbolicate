@@ -387,6 +387,19 @@ static uint64_t uint64FromHexString(NSString *string) {
 
 #pragma mark - Private Methods
 
+static CRStackFrame *stackFrameWithString(NSString *string) {
+    CRStackFrame *stackFrame = nil;
+    NSArray *array = [string captureComponentsMatchedByRegex:@"^(\\d+)\\s+.*\\S\\s+(?:0x)?([0-9a-f]+) (?:0x)?([0-9a-f]+) \\+ (?:0x)?\\d+"];
+    if ([array count] == 4) {
+        NSString *matches[] = {[array objectAtIndex:1], [array objectAtIndex:2], [array objectAtIndex:3]};
+        stackFrame = [CRStackFrame new];
+        stackFrame.depth = [matches[0] intValue];
+        stackFrame.address = uint64FromHexString(matches[1]);
+        stackFrame.imageAddress = uint64FromHexString(matches[2]);
+    }
+    return [stackFrame autorelease];
+}
+
 - (void)parse {
     NSString *description = [[self properties] objectForKey:kCrashReportDescription];
     if (description != nil) {
@@ -434,11 +447,42 @@ static uint64_t uint64FromHexString(NSString *string) {
                         [processInfo addObject:line];
                         break;
                     } else {
-                        // Start of thread 0; fall-through to next case.
+                        // Start of thread 0.
                         mode = ModeThread;
+                        goto parse_thread;
                     }
 
+                case ModeException: {
+                    if ([line hasPrefix:@"Thread 0"]) {
+                        // Start of thread 0.
+                        mode = ModeThread;
+                        goto parse_thread;
+                    } else {
+                        if ([line hasPrefix:@"("] && [line hasSuffix:@")"]) {
+                            NSUInteger depth = 0;
+                            NSRange range = NSMakeRange(1,  [line length] - 2);
+                            NSArray *array = [[line substringWithRange:range] componentsSeparatedByString:@" "];
+                            for (NSString *address in array) {
+                                CRStackFrame *stackFrame = [CRStackFrame new];
+                                stackFrame.depth = depth;
+                                stackFrame.address = uint64FromHexString(address);
+                                //stackFrame.imageAddress = 0;
+                                [exception addStackFrame:stackFrame];
+                                [stackFrame release];
+                                ++depth;
+                            }
+                        } else if ([line length] > 0) {
+                            CRStackFrame *stackFrame = stackFrameWithString(line);
+                            if (stackFrame != nil) {
+                                [exception addStackFrame:stackFrame];
+                            }
+                        }
+                    }
+                    break;
+                }
+
                 case ModeThread:
+parse_thread:
                     if ([line rangeOfString:@"Thread State"].location != NSNotFound) {
                         if (thread != nil) {
                             [threads addObject:thread];
@@ -462,45 +506,13 @@ static uint64_t uint64FromHexString(NSString *string) {
                             }
                             [thread setCrashed:([line rangeOfString:@"Crashed"].location != NSNotFound)];
                         } else {
-                            NSArray *array = [line captureComponentsMatchedByRegex:@"^(\\d+)\\s+.*\\S\\s+(?:0x)?([0-9a-f]+) (?:0x)?([0-9a-f]+) \\+ (?:0x)?\\d+"];
-                            if ([array count] == 4) {
-                                NSString *matches[] = {[array objectAtIndex:1], [array objectAtIndex:2], [array objectAtIndex:3]};
-                                CRStackFrame *stackFrame = [CRStackFrame new];
-                                stackFrame.depth = [matches[0] intValue];
-                                stackFrame.address = uint64FromHexString(matches[1]);
-                                stackFrame.imageAddress = uint64FromHexString(matches[2]);
+                            CRStackFrame *stackFrame = stackFrameWithString(line);
+                            if (stackFrame != nil) {
                                 [thread addStackFrame:stackFrame];
-                                [stackFrame release];
                             }
                         }
                     }
                     break;
-
-                case ModeException: {
-                    mode = ModeProcessInfo;
-
-                    NSUInteger lastCloseParenthesis = [line rangeOfString:@")" options:NSBackwardsSearch].location;
-                    if (lastCloseParenthesis != NSNotFound) {
-                        NSRange range = NSMakeRange(0, lastCloseParenthesis);
-                        NSUInteger firstOpenParenthesis = [line rangeOfString:@"(" options:0 range:range].location;
-                        if (firstOpenParenthesis < lastCloseParenthesis) {
-                            NSUInteger depth = 0;
-                            range = NSMakeRange(firstOpenParenthesis + 1, lastCloseParenthesis - firstOpenParenthesis - 1);
-                            NSArray *array = [[line substringWithRange:range] componentsSeparatedByString:@" "];
-                            for (NSString *address in array) {
-                                CRStackFrame *stackFrame = [CRStackFrame new];
-                                stackFrame.depth = depth;
-                                stackFrame.address = uint64FromHexString(address);
-                                //stackFrame.imageAddress = 0;
-                                [exception addStackFrame:stackFrame];
-                                [stackFrame release];
-                                ++depth;
-                            }
-                            continue;
-                        }
-                    }
-                    break;
-                }
 
                 case ModeRegisterState:
                     if ([line isEqualToString:@"Binary Images:"]) {
