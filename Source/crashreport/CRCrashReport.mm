@@ -560,12 +560,16 @@ static uint64_t uint64FromHexString(NSString *string) {
 
     // Add process information.
     [description appendString:[[self processInfo] componentsJoinedByString:@"\n"]];
+    [description appendString:@"\n"];
 
     // Add exception.
     NSDictionary *binaryImages = [self binaryImages];
-    [description appendString:@"Last Exception Backtrace:\n"];
-    [description appendString:[[self exception] stringRepresentationUsingBinaryImages:binaryImages]];
-    [description appendString:@"\n"];
+    NSString *string = [[self exception] stringRepresentationUsingBinaryImages:binaryImages];
+    if ([string length] > 0) {
+        [description appendString:@"Last Exception Backtrace:\n"];
+        [description appendString:string];
+        [description appendString:@"\n"];
+    }
 
     // Add threads.
     NSArray *threads = [self threads];
