@@ -511,7 +511,7 @@ static uint64_t uint64FromHexString(NSString *string) {
                     break;
 
                 case ModeBinaryImage: {
-                    NSArray *array = [line captureComponentsMatchedByRegex:@"^ *0x([0-9a-f]+) - *0x([0-9a-f]+) [ +]?(?:.+?) (arm\\w*)  (<[0-9a-f]{32}> )?(.+)$"];
+                    NSArray *array = [line captureComponentsMatchedByRegex:@"^ *0x([0-9a-f]+) - *0x([0-9a-f]+) [ +]?(?:.+?) (arm\\w*) *(<[0-9a-f]{32}>)? *(.+)$"];
                     NSUInteger count = [array count];
                     if ((count == 5) || (count == 6)) {
                         uint64_t imageAddress = uint64FromHexString([array objectAtIndex:1]);
