@@ -483,7 +483,7 @@ static CRStackFrame *stackFrameWithString(NSString *string) {
 
                 case ModeThread:
 parse_thread:
-                    if ([line rangeOfString:@"Thread State"].location != NSNotFound) {
+                    if ([line rangeOfString:@"Thread State" options:NSCaseInsensitiveSearch].location != NSNotFound) {
                         if (thread != nil) {
                             [threads addObject:thread];
                             [thread release];
