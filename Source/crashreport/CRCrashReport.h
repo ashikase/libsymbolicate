@@ -16,7 +16,7 @@ extern NSString * const kCrashReportDescription;
 
 @interface CRCrashReport : NSObject
 @property(nonatomic, readonly) NSDictionary *properties;
-@property(nonatomic, readonly) NSArray *processInfo;
+@property(nonatomic, readonly) NSDictionary *processInfo;
 @property(nonatomic, readonly) CRException *exception;
 @property(nonatomic, readonly) NSArray *threads;
 @property(nonatomic, readonly) NSArray *registerState;

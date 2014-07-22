@@ -31,22 +31,26 @@ static uint64_t uint64FromHexString(NSString *string) {
 
 @interface CRCrashReport ()
 @property(nonatomic, retain) NSDictionary *properties;
-@property(nonatomic, retain) NSArray *processInfo;
 @property(nonatomic, retain) CRException *exception;
 @property(nonatomic, retain) NSArray *threads;
 @property(nonatomic, retain) NSArray *registerState;
 @property(nonatomic, retain) NSDictionary *binaryImages;
 @property(nonatomic, assign) BOOL isPropertyList;
+
+@property(nonatomic, retain) NSArray *processInfoKeys;
+@property(nonatomic, retain) NSArray *processInfoObjects;
 @end
 
 @implementation CRCrashReport
 
 @synthesize properties = properties_;
-@synthesize processInfo = processInfo_;
 @synthesize exception = exception_;
 @synthesize threads = threads_;
 @synthesize registerState = registerState_;
 @synthesize binaryImages = binaryImages_;
+
+@synthesize processInfoKeys = processInfoKeys_;
+@synthesize processInfoObjects = processInfoObjects_;
 
 #pragma mark - Public API (Creation)
 
@@ -136,7 +140,8 @@ static uint64_t uint64FromHexString(NSString *string) {
 
 - (void)dealloc {
     [properties_ release];
-    [processInfo_ release];
+    [processInfoKeys_ release];
+    [processInfoObjects_ release];
     [exception_ release];
     [threads_ release];
     [registerState_ release];
@@ -385,6 +390,12 @@ static uint64_t uint64FromHexString(NSString *string) {
     return YES;
 }
 
+#pragma mark - Public API (Properties)
+
+- (NSDictionary *)processInfo {
+    return [NSDictionary dictionaryWithObjects:[self processInfoObjects] forKeys:[self processInfoKeys]];
+}
+
 #pragma mark - Private Methods
 
 static CRStackFrame *stackFrameWithString(NSString *string) {
@@ -404,7 +415,8 @@ static CRStackFrame *stackFrameWithString(NSString *string) {
     NSString *description = [[self properties] objectForKey:kCrashReportDescription];
     if (description != nil) {
         // Create variables to store parsed information.
-        NSMutableArray *processInfo = [NSMutableArray new];
+        NSMutableArray *processInfoKeys = [NSMutableArray new];
+        NSMutableArray *processInfoObjects = [NSMutableArray new];
         CRException *exception = [CRException new];
         NSMutableArray *threads = [NSMutableArray new];
         NSMutableArray *registerState = [NSMutableArray new];
@@ -428,23 +440,22 @@ static CRStackFrame *stackFrameWithString(NSString *string) {
         for (NSString *line in inputLines) {
             switch (mode) {
                 case ModeProcessInfo:
-                    if ([line hasPrefix:@"Exception Type:"]) {
-                        NSUInteger lastCloseParenthesis = [line rangeOfString:@")" options:NSBackwardsSearch].location;
-                        if (lastCloseParenthesis != NSNotFound) {
-                            NSRange range = NSMakeRange(0, lastCloseParenthesis);
-                            NSUInteger lastOpenParenthesis = [line rangeOfString:@"(" options:NSBackwardsSearch range:range].location;
-                            if (lastOpenParenthesis < lastCloseParenthesis) {
-                                range = NSMakeRange(lastOpenParenthesis + 1, lastCloseParenthesis - lastOpenParenthesis - 1);
-                                [exception setType:[line substringWithRange:range]];
-                            }
-                        }
-                        [processInfo addObject:line];
-                        break;
-                    } else if ([line hasPrefix:@"Last Exception Backtrace:"]) {
+                    if ([line hasPrefix:@"Last Exception Backtrace:"]) {
                         mode = ModeException;
                         break;
                     } else if (![line hasPrefix:@"Thread 0"]) {
-                        [processInfo addObject:line];
+                        // Parse process information.
+                        NSArray *array = [line captureComponentsMatchedByRegex:@"^([^:]+):\\s*(.*)"];
+                        if ([array count] == 3) {
+                            NSString *key = [array objectAtIndex:1];
+                            NSString *object = [array objectAtIndex:2];
+                            [processInfoKeys addObject:key];
+                            [processInfoObjects addObject:object];
+
+                            if ([key isEqualToString:@"Exception Type"]) {
+                                [exception setType:object];
+                            }
+                        }
                         break;
                     } else {
                         // Start of thread 0.
@@ -544,12 +555,14 @@ parse_thread:
             }
         }
 
-        [self setProcessInfo:processInfo];
+        [self setProcessInfoKeys:processInfoKeys];
+        [self setProcessInfoObjects:processInfoObjects];
         [self setException:exception];
         [self setThreads:threads];
         [self setRegisterState:registerState];
         [self setBinaryImages:binaryImages];
-        [processInfo release];
+        [processInfoKeys release];
+        [processInfoObjects release];
         [exception release];
         [threads release];
         [registerState release];
@@ -571,7 +584,20 @@ parse_thread:
     NSMutableString *description = [NSMutableString new];
 
     // Add process information.
-    [description appendString:[[self processInfo] componentsJoinedByString:@"\n"]];
+    NSArray *processInfoKeys = [self processInfoKeys];
+    NSArray *processInfoObjects = [self processInfoObjects];
+    NSUInteger count = [processInfoKeys count];
+    for (NSUInteger i = 0; i < count; ++i) {
+        NSString *key = [processInfoKeys objectAtIndex:i];
+        NSString *object = [processInfoObjects objectAtIndex:i];
+
+        NSString *keyString = [[NSString alloc] initWithFormat:@"%@:", key];
+        NSString *string = [[NSString alloc] initWithFormat:@"%-21s%@\n", [keyString UTF8String], object];
+        [description appendString:string];
+        [string release];
+        [keyString release];
+    }
+
     [description appendString:@"\n"];
 
     // Add exception.
@@ -585,8 +611,8 @@ parse_thread:
 
     // Add threads.
     NSArray *threads = [self threads];
-    NSUInteger count = [threads count];
-    for (NSUInteger i = 0; i < count; ++i) {
+    NSUInteger threadCount = [threads count];
+    for (NSUInteger i = 0; i < threadCount; ++i) {
         CRThread *thread = [threads objectAtIndex:i];
 
         // Add thread title.
