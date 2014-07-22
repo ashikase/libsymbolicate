@@ -16,6 +16,7 @@
 @property(nonatomic, copy) NSString *uuid;
 @property(nonatomic, copy) NSString *path;
 @property(nonatomic, getter = isBlamable) BOOL blamable;
+@property(nonatomic, getter = isCrashedProcess) BOOL crashedProcess;
 @property(nonatomic, readonly) SCBinaryInfo *binaryInfo;
 @end
 

@@ -229,33 +229,39 @@ static uint64_t uint64FromHexString(NSString *string) {
                 NSNumber *imageAddress = [NSNumber numberWithUnsignedLongLong:[stackFrame imageAddress]];
                 CRBinaryImage *binaryImage = [binaryImages objectForKey:imageAddress];
                 if (binaryImage != nil) {
-                    // Check symbol name of system functions against blame filters.
-                    BOOL blamable = [binaryImage isBlamable];
-                    NSString *path = [binaryImage path];
-                    if ([path isEqualToString:@"/usr/lib/libSystem.B.dylib"]) {
-                        SCSymbolInfo *symbolInfo = [stackFrame symbolInfo];
-                        if (symbolInfo != nil) {
-                            NSString *name = [symbolInfo name];
-                            if (name != nil) {
-                                if (blamable) {
-                                    // Check if this function should never cause crash (only hang).
-                                    if ([functionFilters containsObject:name]) {
-                                        blamable = NO;
-                                    }
-                                } else {
-                                    // Check if this function is actually causing crash.
-                                    if ([reverseFilters containsObject:name]) {
-                                        blamable = YES;
+                    // NOTE: While something in the crashed process may be to blame,
+                    //       it itself should not be included in the blame list.
+                    // NOTE: The blame list is meant to mark 'external' sources of
+                    //       blame.
+                    if (![binaryImage isCrashedProcess]) {
+                        // Check symbol name of system functions against blame filters.
+                        BOOL blamable = [binaryImage isBlamable];
+                        NSString *path = [binaryImage path];
+                        if ([path isEqualToString:@"/usr/lib/libSystem.B.dylib"]) {
+                            SCSymbolInfo *symbolInfo = [stackFrame symbolInfo];
+                            if (symbolInfo != nil) {
+                                NSString *name = [symbolInfo name];
+                                if (name != nil) {
+                                    if (blamable) {
+                                        // Check if this function should never cause crash (only hang).
+                                        if ([functionFilters containsObject:name]) {
+                                            blamable = NO;
+                                        }
+                                    } else {
+                                        // Check if this function is actually causing crash.
+                                        if ([reverseFilters containsObject:name]) {
+                                            blamable = YES;
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    // Determine if binary image should be blamed.
-                    if (blamable) {
-                        if (![blame containsObject:path]) {
-                            [blame addObject:path];
+                        // Determine if binary image should be blamed.
+                        if (blamable) {
+                            if (![blame containsObject:path]) {
+                                [blame addObject:path];
+                            }
                         }
                     }
                 }
@@ -421,6 +427,7 @@ static CRStackFrame *stackFrameWithString(NSString *string) {
         NSMutableArray *threads = [NSMutableArray new];
         NSMutableArray *registerState = [NSMutableArray new];
         NSMutableDictionary *binaryImages = [NSMutableDictionary new];
+        NSString *processPath = nil;
         CRThread *thread = nil;
         NSString *threadName = nil;
 
@@ -452,7 +459,9 @@ static CRStackFrame *stackFrameWithString(NSString *string) {
                             [processInfoKeys addObject:key];
                             [processInfoObjects addObject:object];
 
-                            if ([key isEqualToString:@"Exception Type"]) {
+                            if ([key isEqualToString:@"Path"]) {
+                                processPath = object;
+                            } else if ([key isEqualToString:@"Exception Type"]) {
                                 [exception setType:object];
                             }
                         }
@@ -539,11 +548,16 @@ parse_thread:
                     if ((count == 5) || (count == 6)) {
                         uint64_t imageAddress = uint64FromHexString([array objectAtIndex:1]);
                         uint64_t size = uint64FromHexString([array objectAtIndex:2]) - imageAddress;
+                        NSString *path = [array objectAtIndex:(count - 1)];
+
                         CRBinaryImage *binaryImage = [CRBinaryImage new];
                         [binaryImage setAddress:imageAddress];
                         [binaryImage setSize:size];
                         [binaryImage setArchitecture:[array objectAtIndex:3]];
-                        [binaryImage setPath:[array objectAtIndex:(count - 1)]];
+                        [binaryImage setPath:path];
+                        if ([path isEqualToString:processPath]) {
+                            [binaryImage setCrashedProcess:YES];
+                        }
                         if (count == 6) {
                             [binaryImage setUuid:[array objectAtIndex:(count - 2)]];
                         }
