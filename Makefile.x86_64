@@ -1,5 +1,5 @@
 export ARCHS = x86_64
-export TARGET = macosx
+export TARGET = macosx:clang
 export TARGET_MACOSX_DEPLOYMENT_VERSION = 10.6
 
 include Makefile.common
