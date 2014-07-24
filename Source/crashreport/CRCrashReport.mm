@@ -103,7 +103,7 @@ static uint64_t uint64FromHexString(NSString *string) {
                     if ([object isKindOfClass:[NSDictionary class]]) {
                         NSMutableDictionary *dict = [[NSMutableDictionary alloc] initWithDictionary:object];
                         [dict setObject:description forKey:kCrashReportDescription];
-                        properties_ = dict;
+                        properties_ = [dict retain];
                     } else {
                         fprintf(stderr, "ERROR: IPS header is not correct format.\n");
                         [self release];
