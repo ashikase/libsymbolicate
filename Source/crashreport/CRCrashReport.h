@@ -11,6 +11,7 @@
 
 extern NSString * const kCrashReportBlame;
 extern NSString * const kCrashReportDescription;
+extern NSString * const kCrashReportSymbolicated;
 
 @class CRException;
 
@@ -22,6 +23,7 @@ extern NSString * const kCrashReportDescription;
 @property(nonatomic, readonly) NSArray *registerState;
 @property(nonatomic, readonly) NSDictionary *binaryImages;
 @property(nonatomic, readonly) BOOL isPropertyList;
+@property(nonatomic, readonly) BOOL isSymbolicated;
 + (CRCrashReport *)crashReportWithData:(NSData *)data;
 + (CRCrashReport *)crashReportWithFile:(NSString *)filepath;
 - (id)initWithData:(NSData *)data;

@@ -24,6 +24,7 @@
 // NOTE: These are are allowed to be accessed externally.
 NSString * const kCrashReportBlame = @"blame";
 NSString * const kCrashReportDescription = @"description";
+NSString * const kCrashReportSymbolicated = @"symbolicated";
 
 static uint64_t uint64FromHexString(NSString *string) {
     return (uint64_t)unsignedLongLongFromHexString([string UTF8String], [string length]);
@@ -51,6 +52,8 @@ static uint64_t uint64FromHexString(NSString *string) {
 
 @synthesize processInfoKeys = processInfoKeys_;
 @synthesize processInfoObjects = processInfoObjects_;
+
+@dynamic isSymbolicated;
 
 #pragma mark - Public API (Creation)
 
@@ -392,11 +395,28 @@ static uint64_t uint64FromHexString(NSString *string) {
     // Update the description in order to include symbol info.
     [self updateDescription];
 
+    // Mark this report as "symbolicated".
+    NSMutableDictionary *properties = [[NSMutableDictionary alloc] initWithDictionary:[self properties]];
+    [properties setObject:[NSNumber numberWithBool:YES] forKey:kCrashReportSymbolicated];
+    [self setProperties:properties];
+    [properties release];
+
     // NOTE: Currently, this always 'succeeds'.
     return YES;
 }
 
 #pragma mark - Public API (Properties)
+
+- (BOOL)isSymbolicated {
+    BOOL isSymbolicated = NO;
+
+    id object = [[self properties] objectForKey:kCrashReportSymbolicated];
+    if ([object isKindOfClass:[NSNumber class]]) {
+        isSymbolicated = [object boolValue];
+    }
+
+    return isSymbolicated;
+}
 
 - (NSDictionary *)processInfo {
     return [NSDictionary dictionaryWithObjects:[self processInfoObjects] forKeys:[self processInfoKeys]];
