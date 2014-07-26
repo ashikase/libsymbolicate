@@ -481,6 +481,14 @@ static CRStackFrame *stackFrameWithString(NSString *string) {
 
                             if ([key isEqualToString:@"Path"]) {
                                 processPath = object;
+
+                                // NOTE: For some reason, the process path
+                                //       is sometimes prefixed with multiple '/'
+                                //       characters.
+                                NSRange range = [processPath rangeOfRegex:@"^/+"];
+                                if ((range.location == 0) && (range.length > 1)) {
+                                    processPath = [processPath substringFromIndex:(range.length - 1)];
+                                }
                             } else if ([key isEqualToString:@"Exception Type"]) {
                                 [exception setType:object];
                             }
