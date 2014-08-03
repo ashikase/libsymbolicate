@@ -563,7 +563,7 @@ parse_thread:
                     break;
 
                 case ModeRegisterState:
-                    if ([line isEqualToString:@"Binary Images:"]) {
+                    if ([line hasPrefix:@"Binary Images"]) {
                         mode = ModeBinaryImage;
                     } else if ([line length] > 0) {
                         [registerState addObject:line];
@@ -684,18 +684,38 @@ parse_thread:
     [description appendString:@"\n"];
     [description appendString:@"\n"];
 
-    // Add binary images.
-    [description appendString:@"Binary Images:\n"];
+    // Retrieve sorted array of binary image addresses.
     NSArray *imageAddresses = [[binaryImages allKeys] sortedArrayUsingSelector:@selector(compare:)];
+
+    // Add blamable binary images.
+    [description appendString:@"Binary Images (Blamable):\n"];
     for (NSString *key in imageAddresses) {
         CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
-        uint64_t imageAddress = [binaryImage address];
-        NSString *path = [binaryImage path];
-        NSString *string = [[NSString alloc] initWithFormat:@"0x%08llx - 0x%08llx %@ %@  %@ %@",
-            imageAddress, imageAddress + [binaryImage size], [path lastPathComponent], [binaryImage architecture], [binaryImage uuid], path];
-        [description appendString:string];
-        [description appendString:@"\n"];
-        [string release];
+        if ([binaryImage isBlamable]) {
+            uint64_t imageAddress = [binaryImage address];
+            NSString *path = [binaryImage path];
+            NSString *string = [[NSString alloc] initWithFormat:@"0x%08llx - 0x%08llx %@ %@  %@ %@",
+                imageAddress, imageAddress + [binaryImage size], [path lastPathComponent], [binaryImage architecture], [binaryImage uuid], path];
+            [description appendString:string];
+            [description appendString:@"\n"];
+            [string release];
+        }
+    }
+    [description appendString:@"\n"];
+
+    // Add filtered binary images.
+    [description appendString:@"Binary Images (Filtered):\n"];
+    for (NSString *key in imageAddresses) {
+        CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
+        if (![binaryImage isBlamable]) {
+            uint64_t imageAddress = [binaryImage address];
+            NSString *path = [binaryImage path];
+            NSString *string = [[NSString alloc] initWithFormat:@"0x%08llx - 0x%08llx %@ %@  %@ %@",
+                imageAddress, imageAddress + [binaryImage size], [path lastPathComponent], [binaryImage architecture], [binaryImage uuid], path];
+            [description appendString:string];
+            [description appendString:@"\n"];
+            [string release];
+        }
     }
 
     // Update the property dictionary.
