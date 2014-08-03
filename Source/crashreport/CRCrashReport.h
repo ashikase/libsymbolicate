@@ -13,6 +13,12 @@ extern NSString * const kCrashReportBlame;
 extern NSString * const kCrashReportDescription;
 extern NSString * const kCrashReportSymbolicated;
 
+typedef enum {
+    CRCrashReportFilterTypeNone,
+    CRCrashReportFilterTypeFile,
+    CRCrashReportFilterTypePackage
+} CRCrashReportFilterType;
+
 @class CRException;
 
 @interface CRCrashReport : NSObject
@@ -25,9 +31,13 @@ extern NSString * const kCrashReportSymbolicated;
 @property(nonatomic, readonly) BOOL isPropertyList;
 @property(nonatomic, readonly) BOOL isSymbolicated;
 + (CRCrashReport *)crashReportWithData:(NSData *)data;
++ (CRCrashReport *)crashReportWithData:(NSData *)data filterType:(CRCrashReportFilterType)filterType;
 + (CRCrashReport *)crashReportWithFile:(NSString *)filepath;
++ (CRCrashReport *)crashReportWithFile:(NSString *)filepath filterType:(CRCrashReportFilterType)filterType;
 - (id)initWithData:(NSData *)data;
+- (id)initWithData:(NSData *)data filterType:(CRCrashReportFilterType)filterType;
 - (id)initWithFile:(NSString *)filepath;
+- (id)initWithFile:(NSString *)filepath filterType:(CRCrashReportFilterType)filterType;
 - (BOOL)blame;
 - (BOOL)blameUsingFilters:(NSDictionary *)filters;
 - (NSString *)stringRepresentation;

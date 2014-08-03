@@ -21,6 +21,46 @@
 #include <notify.h>
 #include "common.h"
 
+static NSString * const kDebianPackageInfoPath = @"/var/lib/dpkg/info";
+
+static NSSet *filesFromDebianPackages$ = nil;
+
+static void determineFilesFromDebianPackages() {
+    NSMutableString *filelist = [NSMutableString new];
+
+    // Retrieve a list of all files that come from Debian packages.
+    NSFileManager *fileMan = [NSFileManager defaultManager];
+    NSError *error = nil;
+    NSArray *contents = [fileMan contentsOfDirectoryAtPath:kDebianPackageInfoPath error:&error];
+    if (contents != nil) {
+        for (NSString *file in contents) {
+            if ([file hasSuffix:@".list"]) {
+                NSString *filepath = [kDebianPackageInfoPath stringByAppendingPathComponent:file];
+                NSString *string = [[NSString alloc] initWithContentsOfFile:filepath encoding:NSUTF8StringEncoding error:&error];
+                if (string != nil) {
+                    [filelist appendString:string];
+                } else {
+                    fprintf(stderr, "ERROR: Failed to read contents of file \"%s\": %s.\n",
+                            [filepath UTF8String], [[error localizedDescription] UTF8String]);
+                }
+                [string release];
+            }
+        }
+    } else {
+        fprintf(stderr, "ERROR: Failed to get contents of dpkg info directory: %s.\n", [[error localizedDescription] UTF8String]);
+    }
+
+    // Convert list into a unique set.
+    filesFromDebianPackages$ = [[NSSet alloc] initWithArray:[filelist componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]]];
+
+    // Clean-up.
+    [filelist release];
+}
+
+BOOL isFromDebianPackage(NSString *filepath) {
+    return [filesFromDebianPackages$ containsObject:filepath];
+}
+
 // NOTE: These are are allowed to be accessed externally.
 NSString * const kCrashReportBlame = @"blame";
 NSString * const kCrashReportDescription = @"description";
@@ -42,7 +82,9 @@ static uint64_t uint64FromHexString(NSString *string) {
 @property(nonatomic, retain) NSArray *processInfoObjects;
 @end
 
-@implementation CRCrashReport
+@implementation CRCrashReport {
+    CRCrashReportFilterType filterType_;
+}
 
 @synthesize properties = properties_;
 @synthesize exception = exception_;
@@ -58,16 +100,36 @@ static uint64_t uint64FromHexString(NSString *string) {
 #pragma mark - Public API (Creation)
 
 + (CRCrashReport *)crashReportWithData:(NSData *)data {
-    return [[[self alloc] initWithData:data] autorelease];
+    return [[[self alloc] initWithData:data filterType:CRCrashReportFilterTypeFile] autorelease];
+}
+
++ (CRCrashReport *)crashReportWithData:(NSData *)data filterType:(CRCrashReportFilterType)filterType {
+    return [[[self alloc] initWithData:data filterType:filterType] autorelease];
 }
 
 + (CRCrashReport *)crashReportWithFile:(NSString *)filepath {
-    return [[[self alloc] initWithFile:filepath] autorelease];
+    return [[[self alloc] initWithFile:filepath filterType:CRCrashReportFilterTypeFile] autorelease];
+}
+
++ (CRCrashReport *)crashReportWithFile:(NSString *)filepath filterType:(CRCrashReportFilterType)filterType {
+    return [[[self alloc] initWithFile:filepath filterType:filterType] autorelease];
 }
 
 - (id)initWithData:(NSData *)data {
+    return [self initWithData:data filterType:CRCrashReportFilterTypeFile];
+}
+
+- (id)initWithData:(NSData *)data filterType:(CRCrashReportFilterType)filterType {
     self = [super init];
     if (self != nil) {
+        // Process and store filter type.
+        if (filterType == CRCrashReportFilterTypePackage) {
+            if (filesFromDebianPackages$ == nil) {
+                determineFilesFromDebianPackages();
+            }
+        }
+        filterType_ = filterType;
+
         // Attempt to load data as a property list.
         id plist = nil;
         if ([NSPropertyListSerialization respondsToSelector:@selector(propertyListWithData:options:format:error:)]) {
@@ -130,10 +192,14 @@ static uint64_t uint64FromHexString(NSString *string) {
 }
 
 - (id)initWithFile:(NSString *)filepath {
+    return [self initWithFile:filepath filterType:CRCrashReportFilterTypeFile];
+}
+
+- (id)initWithFile:(NSString *)filepath filterType:(CRCrashReportFilterType)filterType {
     NSError *error = nil;
     NSData *data = [[NSData alloc] initWithContentsOfFile:filepath options:0 error:&error];
     if (data != nil) {
-        return [self initWithData:[data autorelease]];
+        return [self initWithData:[data autorelease] filterType:filterType];
     } else {
         fprintf(stderr, "ERROR: Unable to load data from specified file: \"%s\".\n", [[error localizedDescription] UTF8String]);
         [self release];
@@ -159,14 +225,22 @@ static uint64_t uint64FromHexString(NSString *string) {
 }
 
 - (BOOL)blameUsingFilters:(NSDictionary *)filters {
+    NSSet *binaryFilters = nil;
+    NSSet *exceptionFilters = nil;
+    NSSet *functionFilters = nil;
+    NSSet *prefixFilters = nil;
+    NSSet *reverseFilters = nil;
+
     // Load blame filters.
-    NSDictionary *whitelisted = [filters objectForKey:@"Whitelisted"];
-    NSDictionary *blacklisted = [filters objectForKey:@"Blacklisted"];
-    NSSet *binaryFilters = [[NSSet alloc] initWithArray:[whitelisted objectForKey:@"Binaries"]];
-    NSSet *exceptionFilters = [[NSSet alloc] initWithArray:[whitelisted objectForKey:@"Exceptions"]];
-    NSSet *functionFilters = [[NSSet alloc] initWithArray:[whitelisted objectForKey:@"Functions"]];
-    NSSet *prefixFilters = [[NSSet alloc] initWithArray:[whitelisted objectForKey:@"BinaryPathPrefixes"]];
-    NSSet *reverseFilters = [[NSSet alloc] initWithArray:[blacklisted objectForKey:@"Functions"]];
+    if (filterType_ == CRCrashReportFilterTypeFile) {
+        NSDictionary *whitelisted = [filters objectForKey:@"Whitelisted"];
+        NSDictionary *blacklisted = [filters objectForKey:@"Blacklisted"];
+        binaryFilters = [[NSSet alloc] initWithArray:[whitelisted objectForKey:@"Binaries"]];
+        exceptionFilters = [[NSSet alloc] initWithArray:[whitelisted objectForKey:@"Exceptions"]];
+        functionFilters = [[NSSet alloc] initWithArray:[whitelisted objectForKey:@"Functions"]];
+        prefixFilters = [[NSSet alloc] initWithArray:[whitelisted objectForKey:@"BinaryPathPrefixes"]];
+        reverseFilters = [[NSSet alloc] initWithArray:[blacklisted objectForKey:@"Functions"]];
+    }
 
     NSDictionary *binaryImages = [self binaryImages];
 
@@ -183,17 +257,24 @@ static uint64_t uint64FromHexString(NSString *string) {
                 // Don't blame anything from the shared cache.
                 blamable = NO;
             } else {
-                // Don't blame white-listed binaries (e.g. libraries).
-                NSString *path = [binaryImage path];
-                if ([binaryFilters containsObject:path]) {
-                    blamable = NO;
-                } else {
-                    // Don't blame white-listed folders.
-                    for (NSString *prefix in prefixFilters) {
-                        if ([path hasPrefix:prefix]) {
-                            blamable = NO;
-                            break;
+                if (filterType_ == CRCrashReportFilterTypeFile) {
+                    // Don't blame white-listed binaries (e.g. libraries).
+                    NSString *path = [binaryImage path];
+                    if ([binaryFilters containsObject:path]) {
+                        blamable = NO;
+                    } else {
+                        // Don't blame white-listed folders.
+                        for (NSString *prefix in prefixFilters) {
+                            if ([path hasPrefix:prefix]) {
+                                blamable = NO;
+                                break;
+                            }
                         }
+                    }
+                } else if (filterType_ == CRCrashReportFilterTypePackage) {
+                    NSString *path = [binaryImage path];
+                    if (!isFromDebianPackage(path)) {
+                        blamable = NO;
                     }
                 }
             }
@@ -240,20 +321,22 @@ static uint64_t uint64FromHexString(NSString *string) {
                         // Check symbol name of system functions against blame filters.
                         BOOL blamable = [binaryImage isBlamable];
                         NSString *path = [binaryImage path];
-                        if ([path isEqualToString:@"/usr/lib/libSystem.B.dylib"]) {
-                            SCSymbolInfo *symbolInfo = [stackFrame symbolInfo];
-                            if (symbolInfo != nil) {
-                                NSString *name = [symbolInfo name];
-                                if (name != nil) {
-                                    if (blamable) {
-                                        // Check if this function should never cause crash (only hang).
-                                        if ([functionFilters containsObject:name]) {
-                                            blamable = NO;
-                                        }
-                                    } else {
-                                        // Check if this function is actually causing crash.
-                                        if ([reverseFilters containsObject:name]) {
-                                            blamable = YES;
+                        if (filterType_ == CRCrashReportFilterTypeFile) {
+                            if ([path isEqualToString:@"/usr/lib/libSystem.B.dylib"]) {
+                                SCSymbolInfo *symbolInfo = [stackFrame symbolInfo];
+                                if (symbolInfo != nil) {
+                                    NSString *name = [symbolInfo name];
+                                    if (name != nil) {
+                                        if (blamable) {
+                                            // Check if this function should never cause crash (only hang).
+                                            if ([functionFilters containsObject:name]) {
+                                                blamable = NO;
+                                            }
+                                        } else {
+                                            // Check if this function is actually causing crash.
+                                            if ([reverseFilters containsObject:name]) {
+                                                blamable = YES;
+                                            }
                                         }
                                     }
                                 }
@@ -622,6 +705,16 @@ parse_thread:
     }
 }
 
+static void addBinaryImageToDescription(CRBinaryImage *binaryImage, NSMutableString *description) {
+    uint64_t imageAddress = [binaryImage address];
+    NSString *path = [binaryImage path];
+    NSString *string = [[NSString alloc] initWithFormat:@"0x%08llx - 0x%08llx %@ %@  %@ %@",
+             imageAddress, imageAddress + [binaryImage size], [path lastPathComponent], [binaryImage architecture], [binaryImage uuid], path];
+    [description appendString:string];
+    [description appendString:@"\n"];
+    [string release];
+}
+
 - (void)updateDescription {
     NSMutableString *description = [NSMutableString new];
 
@@ -687,34 +780,65 @@ parse_thread:
     // Retrieve sorted array of binary image addresses.
     NSArray *imageAddresses = [[binaryImages allKeys] sortedArrayUsingSelector:@selector(compare:)];
 
-    // Add blamable binary images.
-    [description appendString:@"Binary Images (Blamable):\n"];
-    for (NSString *key in imageAddresses) {
-        CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
-        if ([binaryImage isBlamable]) {
-            uint64_t imageAddress = [binaryImage address];
-            NSString *path = [binaryImage path];
-            NSString *string = [[NSString alloc] initWithFormat:@"0x%08llx - 0x%08llx %@ %@  %@ %@",
-                imageAddress, imageAddress + [binaryImage size], [path lastPathComponent], [binaryImage architecture], [binaryImage uuid], path];
-            [description appendString:string];
-            [description appendString:@"\n"];
-            [string release];
+    if (filterType_ == CRCrashReportFilterTypeFile) {
+        // Add blamable binary images.
+        [description appendString:@"Binary Images (Blamable):\n"];
+        for (NSString *key in imageAddresses) {
+            CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
+            if ([binaryImage isBlamable]) {
+                addBinaryImageToDescription(binaryImage, description);
+            }
         }
-    }
-    [description appendString:@"\n"];
+        [description appendString:@"\n"];
 
-    // Add filtered binary images.
-    [description appendString:@"Binary Images (Filtered):\n"];
-    for (NSString *key in imageAddresses) {
-        CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
-        if (![binaryImage isBlamable]) {
-            uint64_t imageAddress = [binaryImage address];
-            NSString *path = [binaryImage path];
-            NSString *string = [[NSString alloc] initWithFormat:@"0x%08llx - 0x%08llx %@ %@  %@ %@",
-                imageAddress, imageAddress + [binaryImage size], [path lastPathComponent], [binaryImage architecture], [binaryImage uuid], path];
-            [description appendString:string];
-            [description appendString:@"\n"];
-            [string release];
+        // Add filtered binary images.
+        [description appendString:@"Binary Images (Filtered):\n"];
+        for (NSString *key in imageAddresses) {
+            CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
+            if (![binaryImage isBlamable]) {
+                addBinaryImageToDescription(binaryImage, description);
+            }
+        }
+    } else if (filterType_ == CRCrashReportFilterTypePackage) {
+        NSMutableSet *usedImages = [NSMutableSet new];
+
+        // Add binary images installed via dpkg.
+        [description appendString:@"Binary Images (dpkg):\n"];
+        for (NSString *key in imageAddresses) {
+            CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
+            if (isFromDebianPackage([binaryImage path])) {
+                addBinaryImageToDescription(binaryImage, description);
+                [usedImages addObject:binaryImage];
+            }
+        }
+        [description appendString:@"\n"];
+
+        // Add binary images installed via App Store.
+        [description appendString:@"Binary Images (App Store):\n"];
+        for (NSString *key in imageAddresses) {
+            CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
+            if ([[binaryImage path] hasPrefix:@"/var/mobile/Applications/"]) {
+                addBinaryImageToDescription(binaryImage, description);
+                [usedImages addObject:binaryImage];
+            }
+        }
+        [description appendString:@"\n"];
+
+        // Add binary images included with firmware.
+        [description appendString:@"Binary Images (Other):\n"];
+        for (NSString *key in imageAddresses) {
+            CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
+            if (![usedImages containsObject:binaryImage]) {
+                addBinaryImageToDescription(binaryImage, description);
+            }
+        }
+
+        [usedImages release];
+    } else {
+        [description appendString:@"Binary Images:\n"];
+        for (NSString *key in imageAddresses) {
+            CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
+            addBinaryImageToDescription(binaryImage, description);
         }
     }
 
