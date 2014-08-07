@@ -1,0 +1,3 @@
+[submodule "Common"]
+	path = Common
+	url = http://github.com/ashikase/Common
