@@ -17,6 +17,7 @@
 #import "SCBinaryInfo.h"
 #import "SCSymbolicator.h"
 #import "SCSymbolInfo.h"
+#import "dpkg_util.h"
 
 #include <notify.h>
 #include "common.h"
@@ -84,6 +85,7 @@ static uint64_t uint64FromHexString(NSString *string) {
 
 @implementation CRCrashReport {
     CRCrashReportFilterType filterType_;
+    NSMutableDictionary *debianPackageDetails_;
 }
 
 @synthesize properties = properties_;
@@ -129,6 +131,9 @@ static uint64_t uint64FromHexString(NSString *string) {
             }
         }
         filterType_ = filterType;
+
+        // Create dictionary to cache details for binaries from debian packages.
+        debianPackageDetails_ = [NSMutableDictionary new];
 
         // Attempt to load data as a property list.
         id plist = nil;
@@ -215,6 +220,7 @@ static uint64_t uint64FromHexString(NSString *string) {
     [threads_ release];
     [registerState_ release];
     [binaryImages_ release];
+    [debianPackageDetails_ release];
     [super dealloc];
 }
 
@@ -711,7 +717,6 @@ static void addBinaryImageToDescription(CRBinaryImage *binaryImage, NSMutableStr
     NSString *string = [[NSString alloc] initWithFormat:@"0x%08llx - 0x%08llx %@ %@  %@ %@",
              imageAddress, imageAddress + [binaryImage size], [path lastPathComponent], [binaryImage architecture], [binaryImage uuid], path];
     [description appendString:string];
-    [description appendString:@"\n"];
     [string release];
 }
 
@@ -787,6 +792,7 @@ static void addBinaryImageToDescription(CRBinaryImage *binaryImage, NSMutableStr
             CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
             if ([binaryImage isBlamable]) {
                 addBinaryImageToDescription(binaryImage, description);
+                [description appendString:@"\n"];
             }
         }
         [description appendString:@"\n"];
@@ -797,6 +803,7 @@ static void addBinaryImageToDescription(CRBinaryImage *binaryImage, NSMutableStr
             CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
             if (![binaryImage isBlamable]) {
                 addBinaryImageToDescription(binaryImage, description);
+                [description appendString:@"\n"];
             }
         }
     } else if (filterType_ == CRCrashReportFilterTypePackage) {
@@ -806,8 +813,37 @@ static void addBinaryImageToDescription(CRBinaryImage *binaryImage, NSMutableStr
         [description appendString:@"Binary Images (dpkg):\n"];
         for (NSString *key in imageAddresses) {
             CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
-            if (isFromDebianPackage([binaryImage path])) {
+            NSString *path = [binaryImage path];
+            if (isFromDebianPackage(path)) {
                 addBinaryImageToDescription(binaryImage, description);
+
+                NSDictionary *details = [debianPackageDetails_ objectForKey:path];
+                if (details == nil) {
+                    // Check if same binary image exists on symbolicating device.
+                    // NOTE: The 'uuid' property of the CRBinaryImage object
+                    //       represents the uuid as parsed from the crash log.
+                    //       The 'uuid' property of the SCBinaryInfo object
+                    //       represents the uuid of the binary image on the
+                    //       symbolicating device, assuming that the device has
+                    //       such a binary image.
+                    NSString *uuid = [[binaryImage binaryInfo] uuid];
+                    if ([uuid isEqualToString:[binaryImage uuid]]) {
+                        // Device has same image; retrieve package details.
+                        NSString *identifier = identifierForDebianPackageContainingFile(path);
+                        details = detailsForDebianPackageWithIdentifier(identifier);
+                        [debianPackageDetails_ setObject:details forKey:path];
+                    }
+                }
+                if (details != nil) {
+                    NSString *package = [details objectForKey:@"Package"];
+                    NSString *version = [details objectForKey:@"Version"];
+                    NSString *string = [[NSString alloc] initWithFormat:@" (%@ %@)",
+                            package ?: @"<unknown package>", version ?: @"<unknown version>"];
+                    [description appendString:string];
+                    [string release];
+                }
+
+                [description appendString:@"\n"];
                 [usedImages addObject:binaryImage];
             }
         }
@@ -819,6 +855,7 @@ static void addBinaryImageToDescription(CRBinaryImage *binaryImage, NSMutableStr
             CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
             if ([[binaryImage path] hasPrefix:@"/var/mobile/Applications/"]) {
                 addBinaryImageToDescription(binaryImage, description);
+                [description appendString:@"\n"];
                 [usedImages addObject:binaryImage];
             }
         }
@@ -830,6 +867,7 @@ static void addBinaryImageToDescription(CRBinaryImage *binaryImage, NSMutableStr
             CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
             if (![usedImages containsObject:binaryImage]) {
                 addBinaryImageToDescription(binaryImage, description);
+                [description appendString:@"\n"];
             }
         }
 
@@ -839,6 +877,7 @@ static void addBinaryImageToDescription(CRBinaryImage *binaryImage, NSMutableStr
         for (NSString *key in imageAddresses) {
             CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
             addBinaryImageToDescription(binaryImage, description);
+            [description appendString:@"\n"];
         }
     }
 

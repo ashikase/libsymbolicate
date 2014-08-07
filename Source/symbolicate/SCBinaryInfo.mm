@@ -102,7 +102,7 @@ process_class:
                     [view advanceCursor:20];
                     class_ro_t_name = [view uint64];
                 } else {
-                [view advanceCursor:12];
+                    [view advanceCursor:12];
                     class_ro_t_name = [view uint32];
                 }
                 if (i == 0 && isFromSharedCache && !(flags & RO_META)) {
@@ -214,6 +214,7 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 @synthesize methods = methods_;
 @synthesize owner = owner_;
 @synthesize path = path_;
+@synthesize uuid = uuid_;
 @synthesize slide = slide_;
 @synthesize symbolAddresses = symbolAddresses_;
 
@@ -231,6 +232,7 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     [methods_ release];
     [owner_ release];
     [path_ release];
+    [uuid_ release];
     [symbolAddresses_ release];
     [super dealloc];
 }
@@ -284,6 +286,13 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
         symbolAddresses_ = [symbolAddressesForImageWithHeader([self header]) retain];
     }
     return symbolAddresses_;
+}
+
+- (NSString *)uuid {
+    if (uuid_ == nil) {
+        uuid_ = [[[[[self header] uuid] description] stringByReplacingOccurrencesOfString:@" " withString:@""] retain];
+    }
+    return uuid_;
 }
 
 @end

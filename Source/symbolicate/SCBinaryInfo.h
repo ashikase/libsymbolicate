@@ -20,6 +20,7 @@
 @property(nonatomic, readonly) NSArray *methods;
 @property(nonatomic, readonly) VMUSymbolOwner *owner;
 @property(nonatomic, readonly) NSString *path;
+@property(nonatomic, readonly) NSString *uuid;
 @property(nonatomic, readonly) int64_t slide;
 @property(nonatomic, readonly) NSArray *symbolAddresses;
 - (id)initWithPath:(NSString *)path address:(uint64_t)address;

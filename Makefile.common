@@ -3,6 +3,7 @@ PKG_ID = jp.ashikase.libsymbolicate
 
 libsymbolicate_INSTALL_PATH = /usr/lib
 libsymbolicate_OBJC_FILES = \
+    Common/dpkg_util.m \
     Libraries/RegexKitLite/RegexKitLite.m \
     Libraries/launch-cache/dsc_iterator.cpp \
     Source/common.c \
@@ -20,7 +21,7 @@ libsymbolicate_OBJC_FILES = \
     Source/symbolicate/localSymbols.mm
 libsymbolicate_LDFLAGS = -licucore
 libsymbolicate_PRIVATE_FRAMEWORKS = Symbolication
-ADDITIONAL_CFLAGS = -DPKG_ID=\"$(PKG_ID)\" -ILibraries -ILibraries/launch-cache -ISource -ISource/symbolicate
+ADDITIONAL_CFLAGS = -DPKG_ID=\"$(PKG_ID)\" -ICommon -ILibraries -ILibraries/launch-cache -ISource -ISource/symbolicate
 
 include theos/makefiles/common.mk
 include $(THEOS)/makefiles/library.mk

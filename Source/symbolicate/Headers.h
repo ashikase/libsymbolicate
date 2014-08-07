@@ -41,6 +41,7 @@ typedef struct _VMURange {
 - (id)memory;
 - (id)path;
 - (id)segmentNamed:(id)named;
+- (id)uuid;
 @end
 @protocol VMUMemory <NSObject>
 - (VMURange)addressRange;
