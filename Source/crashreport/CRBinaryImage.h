@@ -18,6 +18,8 @@
 @property(nonatomic, getter = isBlamable) BOOL blamable;
 @property(nonatomic, getter = isCrashedProcess) BOOL crashedProcess;
 @property(nonatomic, readonly) SCBinaryInfo *binaryInfo;
+@property(nonatomic, readonly) BOOL isFromDebianPackage;
+@property(nonatomic, readonly) NSDictionary *packageDetails;
 @end
 
 /* vim: set ft=objcpp ff=unix sw=4 ts=4 tw=80 expandtab: */

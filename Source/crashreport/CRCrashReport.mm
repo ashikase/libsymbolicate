@@ -17,50 +17,9 @@
 #import "SCBinaryInfo.h"
 #import "SCSymbolicator.h"
 #import "SCSymbolInfo.h"
-#import "dpkg_util.h"
 
 #include <notify.h>
 #include "common.h"
-
-static NSString * const kDebianPackageInfoPath = @"/var/lib/dpkg/info";
-
-static NSSet *filesFromDebianPackages$ = nil;
-
-static void determineFilesFromDebianPackages() {
-    NSMutableString *filelist = [NSMutableString new];
-
-    // Retrieve a list of all files that come from Debian packages.
-    NSFileManager *fileMan = [NSFileManager defaultManager];
-    NSError *error = nil;
-    NSArray *contents = [fileMan contentsOfDirectoryAtPath:kDebianPackageInfoPath error:&error];
-    if (contents != nil) {
-        for (NSString *file in contents) {
-            if ([file hasSuffix:@".list"]) {
-                NSString *filepath = [kDebianPackageInfoPath stringByAppendingPathComponent:file];
-                NSString *string = [[NSString alloc] initWithContentsOfFile:filepath encoding:NSUTF8StringEncoding error:&error];
-                if (string != nil) {
-                    [filelist appendString:string];
-                } else {
-                    fprintf(stderr, "ERROR: Failed to read contents of file \"%s\": %s.\n",
-                            [filepath UTF8String], [[error localizedDescription] UTF8String]);
-                }
-                [string release];
-            }
-        }
-    } else {
-        fprintf(stderr, "ERROR: Failed to get contents of dpkg info directory: %s.\n", [[error localizedDescription] UTF8String]);
-    }
-
-    // Convert list into a unique set.
-    filesFromDebianPackages$ = [[NSSet alloc] initWithArray:[filelist componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]]];
-
-    // Clean-up.
-    [filelist release];
-}
-
-BOOL isFromDebianPackage(NSString *filepath) {
-    return [filesFromDebianPackages$ containsObject:filepath];
-}
 
 // NOTE: These are are allowed to be accessed externally.
 NSString * const kCrashReportBlame = @"blame";
@@ -125,11 +84,6 @@ static uint64_t uint64FromHexString(NSString *string) {
     self = [super init];
     if (self != nil) {
         // Process and store filter type.
-        if (filterType == CRCrashReportFilterTypePackage) {
-            if (filesFromDebianPackages$ == nil) {
-                determineFilesFromDebianPackages();
-            }
-        }
         filterType_ = filterType;
 
         // Create dictionary to cache details for binaries from debian packages.
@@ -278,8 +232,7 @@ static uint64_t uint64FromHexString(NSString *string) {
                         }
                     }
                 } else if (filterType_ == CRCrashReportFilterTypePackage) {
-                    NSString *path = [binaryImage path];
-                    if (!isFromDebianPackage(path)) {
+                    if ([binaryImage isFromDebianPackage]) {
                         blamable = NO;
                     }
                 }
@@ -813,30 +766,14 @@ static void addBinaryImageToDescription(CRBinaryImage *binaryImage, NSMutableStr
         [description appendString:@"Binary Images (dpkg):\n"];
         for (NSString *key in imageAddresses) {
             CRBinaryImage *binaryImage = [binaryImages objectForKey:key];
-            NSString *path = [binaryImage path];
-            if (isFromDebianPackage(path)) {
+            if ([binaryImage isFromDebianPackage]) {
                 addBinaryImageToDescription(binaryImage, description);
 
-                NSDictionary *details = [debianPackageDetails_ objectForKey:path];
-                if (details == nil) {
-                    // Check if same binary image exists on symbolicating device.
-                    // NOTE: The 'uuid' property of the CRBinaryImage object
-                    //       represents the uuid as parsed from the crash log.
-                    //       The 'uuid' property of the SCBinaryInfo object
-                    //       represents the uuid of the binary image on the
-                    //       symbolicating device, assuming that the device has
-                    //       such a binary image.
-                    NSString *uuid = [[binaryImage binaryInfo] uuid];
-                    if ([uuid isEqualToString:[binaryImage uuid]]) {
-                        // Device has same image; retrieve package details.
-                        NSString *identifier = identifierForDebianPackageContainingFile(path);
-                        details = detailsForDebianPackageWithIdentifier(identifier);
-                        [debianPackageDetails_ setObject:details forKey:path];
-                    }
-                }
-                if (details != nil) {
-                    NSString *package = [details objectForKey:@"Package"];
-                    NSString *version = [details objectForKey:@"Version"];
+                // Add package information, if available.
+                NSDictionary *packageDetails = [binaryImage packageDetails];
+                if (packageDetails != nil) {
+                    NSString *package = [packageDetails objectForKey:@"Package"];
+                    NSString *version = [packageDetails objectForKey:@"Version"];
                     NSString *string = [[NSString alloc] initWithFormat:@" (%@ %@)",
                             package ?: @"<unknown package>", version ?: @"<unknown version>"];
                     [description appendString:string];
