@@ -83,12 +83,6 @@ static uint64_t uint64FromHexString(NSString *string) {
 - (id)initWithData:(NSData *)data filterType:(CRCrashReportFilterType)filterType {
     self = [super init];
     if (self != nil) {
-        // Process and store filter type.
-        filterType_ = filterType;
-
-        // Create dictionary to cache details for binaries from debian packages.
-        debianPackageDetails_ = [NSMutableDictionary new];
-
         // Attempt to load data as a property list.
         id plist = nil;
         if ([NSPropertyListSerialization respondsToSelector:@selector(propertyListWithData:options:format:error:)]) {
@@ -145,6 +139,13 @@ static uint64_t uint64FromHexString(NSString *string) {
             }
         }
 
+        // Store filter type.
+        filterType_ = filterType;
+
+        // Create dictionary to cache details for binaries from debian packages.
+        debianPackageDetails_ = [NSMutableDictionary new];
+
+        // Parse the file.
         [self parse];
     }
     return self;
