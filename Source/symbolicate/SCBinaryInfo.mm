@@ -252,7 +252,9 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     return reverseSortedAddresses;
 }
 
-@implementation SCBinaryInfo
+@implementation SCBinaryInfo {
+    BOOL headerIsUnavailable_;
+}
 
 @synthesize address = address_;
 @synthesize architecture = architecture_;
@@ -263,16 +265,17 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 @synthesize methods = methods_;
 @synthesize owner = owner_;
 @synthesize path = path_;
-@synthesize uuid = uuid_;
 @synthesize slide = slide_;
 @synthesize symbolAddresses = symbolAddresses_;
+@synthesize uuid = uuid_;
 
-- (id)initWithPath:(NSString *)path address:(uint64_t)address architecture:(NSString *)architecture {
+- (id)initWithPath:(NSString *)path address:(uint64_t)address architecture:(NSString *)architecture uuid:(NSString *)uuid {
     self = [super init];
     if (self != nil) {
         path_ = [path copy];
         address_ = address;
         architecture_ = [architecture copy];
+        uuid_ = [uuid copy];
     }
     return self;
 }
@@ -290,53 +293,65 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 
 - (VMUMachOHeader *)header {
     if (header_ == nil) {
-        // Get Mach-O header for the image
-        VMUMachOHeader *header = nil;
-        NSString *path = [self path];
-        VMUMemory_File *mappedCache = [[SCSymbolicator sharedInstance] mappedCache];
-        if (mappedCache != nil) {
-            uint64_t address = [mappedCache sharedCacheHeaderOffsetForPath:path];
-            NSString *name = [path lastPathComponent];
-            id timestamp = [mappedCache lastModifiedTimestamp];
-            header = [VMUHeader headerWithMemory:mappedCache address:address name:name path:path timestamp:timestamp];
+        if (!headerIsUnavailable_) {
+            // Get Mach-O header for the image
+            VMUMachOHeader *header = nil;
+            NSString *path = [self path];
+            VMUMemory_File *mappedCache = [[SCSymbolicator sharedInstance] mappedCache];
+            if (mappedCache != nil) {
+                uint64_t address = [mappedCache sharedCacheHeaderOffsetForPath:path];
+                NSString *name = [path lastPathComponent];
+                id timestamp = [mappedCache lastModifiedTimestamp];
+                header = [VMUHeader headerWithMemory:mappedCache address:address name:name path:path timestamp:timestamp];
+                if (header != nil) {
+                    fromSharedCache_ = YES;
+                }
+            }
+            if (header == nil) {
+                header = [VMUMemory_File headerWithPath:path];
+            }
+            if (![header isKindOfClass:[VMUMachOHeader class]]) {
+                // Extract required architecture from archive.
+                // TODO: Confirm if arm7f and arm7k should use own cpu subtype.
+                VMUArchitecture *architecture = nil;
+                NSString *requiredArchitecture = [self architecture];
+                if ([requiredArchitecture isEqualToString:@"arm64"]) {
+                    architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM64 cpuSubtype:CPU_SUBTYPE_ARM64_V8];
+                } else if (
+                        [requiredArchitecture isEqualToString:@"armv7s"] ||
+                        [requiredArchitecture isEqualToString:@"armv7k"] ||
+                        [requiredArchitecture isEqualToString:@"armv7f"]) {
+                    architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V7S];
+                } else if ([requiredArchitecture isEqualToString:@"armv7"]) {
+                    architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V7];
+                } else if ([requiredArchitecture isEqualToString:@"armv6"]) {
+                    architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V6];
+                }
+                if (architecture != nil) {
+                    header = [[VMUHeader extractMachOHeadersFromHeader:header matchingArchitecture:architecture considerArchives:NO] lastObject];
+                    [architecture release];
+                }
+            }
             if (header != nil) {
-                fromSharedCache_ = YES;
-            }
-        }
-        if (header == nil) {
-            header = [VMUMemory_File headerWithPath:path];
-        }
-        if (![header isKindOfClass:[VMUMachOHeader class]]) {
-            // Extract required architecture from archive.
-            // TODO: Confirm if arm7f and arm7k should use own cpu subtype.
-            VMUArchitecture *architecture = nil;
-            NSString *requiredArchitecture = [self architecture];
-            if ([requiredArchitecture isEqualToString:@"arm64"]) {
-                architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM64 cpuSubtype:CPU_SUBTYPE_ARM64_V8];
-            } else if (
-                    [requiredArchitecture isEqualToString:@"armv7s"] ||
-                    [requiredArchitecture isEqualToString:@"armv7k"] ||
-                    [requiredArchitecture isEqualToString:@"armv7f"]) {
-                architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V7S];
-            } else if ([requiredArchitecture isEqualToString:@"armv7"]) {
-                architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V7];
-            } else if ([requiredArchitecture isEqualToString:@"armv6"]) {
-                architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V6];
-            }
-            if (architecture != nil) {
-                header = [[VMUHeader extractMachOHeadersFromHeader:header matchingArchitecture:architecture considerArchives:NO] lastObject];
-                [architecture release];
-            }
-        }
-        if (header != nil) {
-            uint64_t textStart = [[header segmentNamed:@"__TEXT"] vmaddr];
-            slide_ = textStart - [self address];
-            // NOTE: The following method is quite slow.
-            owner_ = [[VMUSymbolExtractor extractSymbolOwnerFromHeader:header] retain];
-            encrypted_ = isEncrypted(header);
-            executable_ = ([header fileType] == MH_EXECUTE);
+                // Check UUID signature of binary.
+                NSString *uuid = [[[header uuid] description] stringByReplacingOccurrencesOfString:@" " withString:@""];
+                if ([uuid isEqualToString:[self uuid]]) {
+                    uint64_t textStart = [[header segmentNamed:@"__TEXT"] vmaddr];
+                    slide_ = textStart - [self address];
+                    // NOTE: The following method is quite slow.
+                    owner_ = [[VMUSymbolExtractor extractSymbolOwnerFromHeader:header] retain];
+                    encrypted_ = isEncrypted(header);
+                    executable_ = ([header fileType] == MH_EXECUTE);
 
-            header_ = [header retain];
+                    header_ = [header retain];
+                } else {
+                    fprintf(stderr, "INFO: Symbolicating device does not have required version of binary image: %s\n", [path UTF8String]);
+                    headerIsUnavailable_ = YES;
+                }
+            } else {
+                fprintf(stderr, "INFO: Symbolicating device does not have required binary image: %s\n", [path UTF8String]);
+                headerIsUnavailable_ = YES;
+            }
         }
     }
     return header_;
@@ -356,13 +371,6 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
         symbolAddresses_ = [symbolAddressesForImageWithHeader([self header]) retain];
     }
     return symbolAddresses_;
-}
-
-- (NSString *)uuid {
-    if (uuid_ == nil) {
-        uuid_ = [[[[[self header] uuid] description] stringByReplacingOccurrencesOfString:@" " withString:@""] retain];
-    }
-    return uuid_;
 }
 
 @end

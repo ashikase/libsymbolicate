@@ -24,7 +24,7 @@
 @property(nonatomic, readonly) NSString *uuid;
 @property(nonatomic, readonly) int64_t slide;
 @property(nonatomic, readonly) NSArray *symbolAddresses;
-- (id)initWithPath:(NSString *)path address:(uint64_t)address architecture:(NSString *)architecture;
+- (id)initWithPath:(NSString *)path address:(uint64_t)address architecture:(NSString *)architecture uuid:(NSString *)uuid;
 @end
 
 /* vim: set ft=objcpp ff=unix sw=4 ts=4 tw=80 expandtab: */

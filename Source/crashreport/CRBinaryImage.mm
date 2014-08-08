@@ -54,9 +54,10 @@ static NSSet *setOfFilesFromDebianPackages() {
 
 @implementation CRBinaryImage
 
+@synthesize address = address_;
+@synthesize path = path_;
 @synthesize architecture = architecture_;
 @synthesize uuid = uuid_;
-@synthesize path = path_;
 @synthesize binaryInfo = binaryInfo_;
 @synthesize blamable = blamable_;
 @synthesize packageDetails = packageDetails_;
@@ -69,9 +70,13 @@ static NSSet *setOfFilesFromDebianPackages() {
     }
 }
 
-- (id)init {
+- (id)initWithPath:(NSString *)path address:(uint64_t)address architecture:(NSString *)architecture uuid:(NSString *)uuid {
     self = [super init];
     if (self != nil) {
+        path_ = [path copy];
+        address_ = address;
+        architecture_ = [architecture copy];
+        uuid_ = [uuid copy];
         blamable_ = YES;
     }
     return self;
@@ -90,9 +95,10 @@ static NSSet *setOfFilesFromDebianPackages() {
         NSString *path = [self path];
         uint64_t address = [self address];
         NSString *architecture = [self architecture];
-        NSCAssert((path != nil) && (address != 0) && (architecture != nil),
-            @"ERROR: Must first set path, address and architecture of binary image before retrieving info.");
-        binaryInfo_ = [[SCBinaryInfo alloc] initWithPath:path address:address architecture:architecture];
+        NSString *uuid = [self uuid];
+        NSCAssert((path != nil) && (address != 0) && (architecture != nil) && (uuid != nil),
+            @"ERROR: Must first set path, address, architecture and uuid of binary image before retrieving binary info.");
+        binaryInfo_ = [[SCBinaryInfo alloc] initWithPath:path address:address architecture:architecture uuid:uuid];
     }
     return binaryInfo_;
 }
@@ -103,28 +109,19 @@ static NSSet *setOfFilesFromDebianPackages() {
 
 - (NSDictionary *)packageDetails {
     if (packageDetails_ == nil) {
-        // Check if same binary image exists on symbolicating device.
-        // NOTE: The 'uuid' property of the CRBinaryImage object
-        //       represents the uuid as parsed from the crash log.
-        //       The 'uuid' property of the SCBinaryInfo object
-        //       represents the uuid of the binary image on the
-        //       symbolicating device, assuming that the device has
-        //       such a binary image.
-        if ([[[self binaryInfo] uuid] isEqualToString:[self uuid]]) {
-            // Device has same binary image as the report; retrieve package details.
-            // NOTE: It is possible that multiple versions of a package could
-            //       contain the same binary image... other contained files,
-            //       such as a configuration or data file that the binary uses,
-            //       may have changed.
-            //       Due to this, the package details retrieved from the
-            //       symbolicating device may not be the correct details for the
-            //       package on the crashing device. This can be true even if
-            //       the symbolicating and crashing devices are the same... if
-            //       the package is up/downgraded between the time of the crash
-            //       and the time of the symbolication.
-            NSString *identifier = identifierForDebianPackageContainingFile([self path]);
-            packageDetails_ = [detailsForDebianPackageWithIdentifier(identifier) retain];
-        }
+        // Device has same binary image as the report; retrieve package details.
+        // NOTE: It is possible that multiple versions of a package could
+        //       contain the same binary image... other contained files,
+        //       such as a configuration or data file that the binary uses,
+        //       may have changed.
+        //       Due to this, the package details retrieved from the
+        //       symbolicating device may not be the correct details for the
+        //       package on the crashing device. This can be true even if
+        //       the symbolicating and crashing devices are the same... if
+        //       the package is up/downgraded between the time of the crash
+        //       and the time of the symbolication.
+        NSString *identifier = identifierForDebianPackageContainingFile([self path]);
+        packageDetails_ = [detailsForDebianPackageWithIdentifier(identifier) retain];
     }
     return packageDetails_;
 }

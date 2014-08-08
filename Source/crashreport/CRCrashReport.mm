@@ -613,23 +613,20 @@ parse_thread:
                     break;
 
                 case ModeBinaryImage: {
-                    NSArray *array = [line captureComponentsMatchedByRegex:@"^ *0x([0-9a-f]+) - *0x([0-9a-f]+) [ +]?(?:.+?) (arm\\w*) *(<[0-9a-f]{32}>)? *(.+)$"];
+                    NSArray *array = [line captureComponentsMatchedByRegex:@"^ *0x([0-9a-f]+) - *0x([0-9a-f]+) [ +]?(?:.+?) (arm\\w*) *(<[0-9a-f]{32}>) *(.+)$"];
                     NSUInteger count = [array count];
-                    if ((count == 5) || (count == 6)) {
+                    if (count == 6) {
                         uint64_t imageAddress = uint64FromHexString([array objectAtIndex:1]);
                         uint64_t size = uint64FromHexString([array objectAtIndex:2]) - imageAddress;
-                        NSString *path = [array objectAtIndex:(count - 1)];
+                        NSString *architecture = [array objectAtIndex:3];
+                        NSString *uuid = [array objectAtIndex:4];
+                        NSString *path = [array objectAtIndex:5];
 
-                        CRBinaryImage *binaryImage = [CRBinaryImage new];
-                        [binaryImage setAddress:imageAddress];
+                        CRBinaryImage *binaryImage = [[CRBinaryImage alloc] initWithPath:path address:imageAddress architecture:architecture uuid:uuid];
+                        // FIXME: Is size ever used?
                         [binaryImage setSize:size];
-                        [binaryImage setArchitecture:[array objectAtIndex:3]];
-                        [binaryImage setPath:path];
                         if ([path isEqualToString:processPath]) {
                             [binaryImage setCrashedProcess:YES];
-                        }
-                        if (count == 6) {
-                            [binaryImage setUuid:[array objectAtIndex:(count - 2)]];
                         }
                         [binaryImages setObject:binaryImage forKey:[NSNumber numberWithUnsignedLongLong:imageAddress]];
                         [binaryImage release];
