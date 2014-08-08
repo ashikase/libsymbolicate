@@ -87,6 +87,7 @@ static NSSet *setOfFilesFromDebianPackages() {
     [uuid_ release];
     [path_ release];
     [binaryInfo_ release];
+    [packageDetails_ release];
     [super dealloc];
 }
 
