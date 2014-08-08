@@ -20,6 +20,7 @@
 @property(nonatomic, getter = isCrashedProcess) BOOL crashedProcess;
 @property(nonatomic, readonly) BOOL isFromDebianPackage;
 @property(nonatomic, readonly) NSDictionary *packageDetails;
+@property(nonatomic, readonly) NSDate *packageInstallDate;
 + (id)new __attribute__((unavailable("Must use custom init method.")));
 - (id)init __attribute__((unavailable("Must use custom init method.")));
 - (id)initWithPath:(NSString *)path address:(uint64_t)address architecture:(NSString *)architecture uuid:(NSString *)uuid;

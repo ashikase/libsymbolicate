@@ -20,6 +20,7 @@
 
 #include <notify.h>
 #include "common.h"
+#include "system_info.h"
 
 // NOTE: These are are allowed to be accessed externally.
 NSString * const kCrashReportBlame = @"blame";
@@ -45,6 +46,7 @@ static uint64_t uint64FromHexString(NSString *string) {
 @implementation CRCrashReport {
     CRCrashReportFilterType filterType_;
     NSMutableDictionary *debianPackageDetails_;
+    BOOL processingDeviceIsCrashedDevice_;
 }
 
 @synthesize properties = properties_;
@@ -522,7 +524,12 @@ static CRStackFrame *stackFrameWithString(NSString *string) {
                             [processInfoKeys addObject:key];
                             [processInfoObjects addObject:object];
 
-                            if ([key isEqualToString:@"Path"]) {
+                            if ([key isEqualToString:@"CrashReporter Key"]) {
+                                // Record whether device executing this code is the one that crashed.
+                                if ([object isEqualToString:inverseDeviceIdentifier()]) {
+                                    processingDeviceIsCrashedDevice_ = YES;
+                                }
+                            } else if ([key isEqualToString:@"Path"]) {
                                 processPath = object;
 
                                 // NOTE: For some reason, the process path
@@ -614,7 +621,7 @@ parse_thread:
                     break;
 
                 case ModeBinaryImage: {
-                    NSArray *array = [line captureComponentsMatchedByRegex:@"^ *0x([0-9a-f]+) - *0x([0-9a-f]+) [ +]?(?:.+?) (arm\\w*) *(<[0-9a-f]{32}>) *(.+?)(?: \\(.*?\\))?$"];
+                    NSArray *array = [line captureComponentsMatchedByRegex:@"^ *0x([0-9a-f]+) - *0x([0-9a-f]+) [ +]?(?:.+?) (arm\\w*) *(<[0-9a-f]{32}>) *(.+?)(?: \\(.*?\\))?(?: \\[.*?\\])?$"];
                     NSUInteger count = [array count];
                     if (count == 6) {
                         uint64_t imageAddress = uint64FromHexString([array objectAtIndex:1]);
@@ -775,6 +782,23 @@ static void addBinaryImageToDescription(CRBinaryImage *binaryImage, NSMutableStr
                             package ?: @"<unknown package>", version ?: @"<unknown version>"];
                     [description appendString:string];
                     [string release];
+                }
+
+                // Add install date.
+                if (processingDeviceIsCrashedDevice_) {
+                    NSDate *packageInstallDate = [binaryImage packageInstallDate];
+                    if (packageInstallDate != nil) {
+                        // Format the date.
+                        char buf[29];
+                        const char *format = " [%Y-%m-%d %H:%M:%S %z]";
+                        time_t interval = (time_t)[packageInstallDate timeIntervalSince1970];
+                        strftime(buf, 29, format, gmtime(&interval));
+
+                        // Append to line.
+                        NSString *string = [[NSString alloc] initWithCString:buf encoding:NSUTF8StringEncoding];
+                        [description appendString:string];
+                        [string release];
+                    }
                 }
 
                 [description appendString:@"\n"];

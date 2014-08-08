@@ -61,6 +61,7 @@ static NSSet *setOfFilesFromDebianPackages() {
 @synthesize binaryInfo = binaryInfo_;
 @synthesize blamable = blamable_;
 @synthesize packageDetails = packageDetails_;
+@synthesize packageInstallDate = packageInstallDate_;
 
 @dynamic isFromDebianPackage;
 
@@ -88,6 +89,7 @@ static NSSet *setOfFilesFromDebianPackages() {
     [path_ release];
     [binaryInfo_ release];
     [packageDetails_ release];
+    [packageInstallDate_ release];
     [super dealloc];
 }
 
@@ -125,6 +127,14 @@ static NSSet *setOfFilesFromDebianPackages() {
         packageDetails_ = [detailsForDebianPackageWithIdentifier(identifier) retain];
     }
     return packageDetails_;
+}
+
+- (NSDate *)packageInstallDate {
+    if (packageInstallDate_ == nil) {
+        NSString *identifier = identifierForDebianPackageContainingFile([self path]);
+        packageInstallDate_ = [installDateForDebianPackageWithIdentifier(identifier) retain];
+    }
+    return packageInstallDate_;
 }
 
 @end
