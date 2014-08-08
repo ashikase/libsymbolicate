@@ -14,6 +14,54 @@
 #include <mach-o/loader.h>
 #include <objc/runtime.h>
 
+// ABI types.
+#ifndef CPU_ARCH_ABI64
+#define CPU_ARCH_ABI64 0x01000000
+#endif
+
+// CPU types.
+#ifndef CPU_TYPE_ARM
+#define CPU_TYPE_ARM 12
+#endif
+
+#ifndef CPU_TYPE_ARM64
+#define CPU_TYPE_ARM64 (CPU_TYPE_ARM | CPU_ARCH_ABI64)
+#endif
+
+// ARM subtypes.
+#ifndef CPU_SUBTYPE_ARM_ALL
+#define CPU_SUBTYPE_ARM_ALL 0
+#endif
+
+#ifndef CPU_SUBTYPE_ARM_V6
+#define CPU_SUBTYPE_ARM_V6 6
+#endif
+
+#ifndef CPU_SUBTYPE_ARM_V7
+#define CPU_SUBTYPE_ARM_V7 9
+#endif
+
+#ifndef CPU_SUBTYPE_ARM_V7F
+#define CPU_SUBTYPE_ARM_V7F 10 // Cortex A9
+#endif
+
+#ifndef CPU_SUBTYPE_ARM_V7S
+#define CPU_SUBTYPE_ARM_V7S 11 // Swift
+#endif
+
+#ifndef CPU_SUBTYPE_ARM_V7K
+#define CPU_SUBTYPE_ARM_V7K 12 // Kirkwood40
+#endif
+
+// ARM64 subtypes.
+#ifndef CPU_SUBTYPE_ARM64_ALL
+#define CPU_SUBTYPE_ARM64_ALL 0
+#endif
+
+#ifndef CPU_SUBTYPE_ARM64_V8
+#define CPU_SUBTYPE_ARM64_V8 1
+#endif
+
 static uint64_t linkCommandOffsetForHeader(VMUMachOHeader *header, uint64_t linkCommand) {
     uint64_t cmdsize = 0;
     Ivar ivar = class_getInstanceVariable([VMULoadCommand class], "_command");
@@ -207,6 +255,7 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 @implementation SCBinaryInfo
 
 @synthesize address = address_;
+@synthesize architecture = architecture_;
 @synthesize encrypted = encrypted_;
 @synthesize executable = executable_;
 @synthesize fromSharedCache = fromSharedCache_;
@@ -218,16 +267,18 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 @synthesize slide = slide_;
 @synthesize symbolAddresses = symbolAddresses_;
 
-- (id)initWithPath:(NSString *)path address:(uint64_t)address {
+- (id)initWithPath:(NSString *)path address:(uint64_t)address architecture:(NSString *)architecture {
     self = [super init];
     if (self != nil) {
         path_ = [path copy];
         address_ = address;
+        architecture_ = [architecture copy];
     }
     return self;
 }
 
 - (void)dealloc {
+    [architecture_ release];
     [header_ release];
     [methods_ release];
     [owner_ release];
@@ -256,7 +307,26 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
             header = [VMUMemory_File headerWithPath:path];
         }
         if (![header isKindOfClass:[VMUMachOHeader class]]) {
-            header = [[VMUHeader extractMachOHeadersFromHeader:header matchingArchitecture:[VMUArchitecture currentArchitecture] considerArchives:NO] lastObject];
+            // Extract required architecture from archive.
+            // TODO: Confirm if arm7f and arm7k should use own cpu subtype.
+            VMUArchitecture *architecture = nil;
+            NSString *requiredArchitecture = [self architecture];
+            if ([requiredArchitecture isEqualToString:@"arm64"]) {
+                architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM64 cpuSubtype:CPU_SUBTYPE_ARM64_V8];
+            } else if (
+                    [requiredArchitecture isEqualToString:@"armv7s"] ||
+                    [requiredArchitecture isEqualToString:@"armv7k"] ||
+                    [requiredArchitecture isEqualToString:@"armv7f"]) {
+                architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V7S];
+            } else if ([requiredArchitecture isEqualToString:@"armv7"]) {
+                architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V7];
+            } else if ([requiredArchitecture isEqualToString:@"armv6"]) {
+                architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V6];
+            }
+            if (architecture != nil) {
+                header = [[VMUHeader extractMachOHeadersFromHeader:header matchingArchitecture:architecture considerArchives:NO] lastObject];
+                [architecture release];
+            }
         }
         if (header != nil) {
             uint64_t textStart = [[header segmentNamed:@"__TEXT"] vmaddr];

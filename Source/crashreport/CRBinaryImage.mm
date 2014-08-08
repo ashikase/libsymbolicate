@@ -87,7 +87,12 @@ static NSSet *setOfFilesFromDebianPackages() {
 
 - (SCBinaryInfo *)binaryInfo {
     if (binaryInfo_ == nil) {
-        binaryInfo_ = [[SCBinaryInfo alloc] initWithPath:[self path] address:[self address]];
+        NSString *path = [self path];
+        uint64_t address = [self address];
+        NSString *architecture = [self architecture];
+        NSCAssert((path != nil) && (address != 0) && (architecture != nil),
+            @"ERROR: Must first set path, address and architecture of binary image before retrieving info.");
+        binaryInfo_ = [[SCBinaryInfo alloc] initWithPath:path address:address architecture:architecture];
     }
     return binaryInfo_;
 }

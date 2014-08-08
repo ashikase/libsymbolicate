@@ -19,8 +19,7 @@ typedef struct _VMURange {
 
 @interface VMUAddressRange : NSObject <NSCoding> @end
 @interface VMUArchitecture : NSObject <NSCoding, NSCopying>
-+ (id)architectureWithCpuType:(int)cpuType cpuSubtype:(int)subtype;
-+ (id)currentArchitecture;
+- (id)initWithCpuType:(int)arg1 cpuSubtype:(int)arg2;
 @end
 @interface VMUDyld : NSObject
 + (id)nativeSharedCachePath;
