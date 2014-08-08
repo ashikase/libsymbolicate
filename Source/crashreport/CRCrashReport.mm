@@ -623,7 +623,6 @@ parse_thread:
                         NSString *path = [array objectAtIndex:5];
 
                         CRBinaryImage *binaryImage = [[CRBinaryImage alloc] initWithPath:path address:imageAddress architecture:architecture uuid:uuid];
-                        // FIXME: Is size ever used?
                         [binaryImage setSize:size];
                         if ([path isEqualToString:processPath]) {
                             [binaryImage setCrashedProcess:YES];
