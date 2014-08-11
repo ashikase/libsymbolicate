@@ -45,7 +45,6 @@ static uint64_t uint64FromHexString(NSString *string) {
 
 @implementation CRCrashReport {
     CRCrashReportFilterType filterType_;
-    NSMutableDictionary *debianPackageDetails_;
     BOOL processingDeviceIsCrashedDevice_;
 }
 
@@ -144,9 +143,6 @@ static uint64_t uint64FromHexString(NSString *string) {
         // Store filter type.
         filterType_ = filterType;
 
-        // Create dictionary to cache details for binaries from debian packages.
-        debianPackageDetails_ = [NSMutableDictionary new];
-
         // Parse the file.
         [self parse];
     }
@@ -177,7 +173,6 @@ static uint64_t uint64FromHexString(NSString *string) {
     [threads_ release];
     [registerState_ release];
     [binaryImages_ release];
-    [debianPackageDetails_ release];
     [super dealloc];
 }
 
