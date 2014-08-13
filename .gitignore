@@ -1,0 +1,8 @@
+**/theos
+**/theos/*
+**/.theos/*
+*.o
+*/obj/*
+**/obj/*
+_/*
+*.deb
