@@ -20,9 +20,14 @@ after-stage::
 	# Remove repository-related files.
 	- find $(THEOS_STAGING_DIR) -name '.gitkeep' -delete
 	# Copy header files to include directory.
-	- mkdir -p $(THEOS_STAGING_DIR)/usr/include/libsymbolicate/
-	- cp $(THEOS_PROJECT_DIR)/include/*.h $(THEOS_STAGING_DIR)/usr/include/libsymbolicate/
+	- mkdir -p $(THEOS_STAGING_DIR)/usr/include/$(LIBRARY_NAME)/
+	- cp $(THEOS_PROJECT_DIR)/include/*.h $(THEOS_STAGING_DIR)/usr/include/$(LIBRARY_NAME)/
 
 distclean: clean
 	- rm -f $(THEOS_PROJECT_DIR)/$(PKG_ID)*.deb
 	- rm -f $(THEOS_PROJECT_DIR)/.theos/packages/*
+
+sdk:
+	- mkdir -p $(THEOS)/include/$(LIBRARY_NAME)/
+	- cp $(THEOS_PROJECT_DIR)/include/*.h $(THEOS)/include/$(LIBRARY_NAME)/
+	- cp $(THEOS_OBJ_DIR)/$(LIBRARY_NAME).dylib $(THEOS)/lib/
