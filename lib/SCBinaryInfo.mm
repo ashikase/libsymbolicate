@@ -163,42 +163,41 @@ process_class:
 
                 uint64_t baseMethods;
                 if (is64Bit) {
-                    [view setCursor:vmdiff_data + class_ro_t_address + 40];
+                    [view setCursor:vmdiff_data + class_ro_t_address + 32];
                     baseMethods = [view uint64];
                 } else {
-                [view setCursor:vmdiff_data + class_ro_t_address + 20];
+                    [view setCursor:vmdiff_data + class_ro_t_address + 20];
                     baseMethods = [view uint32];
                 }
                 if (baseMethods != 0) {
                     [view setCursor:vmdiff_data + baseMethods];
                     const uint32_t entsize = [view uint32];
-                    if (entsize == 12 || entsize == 15) {
-                        uint32_t count = [view uint32];
-                        for (uint32_t j = 0; j < count; ++j) {
-                            SCMethodInfo *mi = [SCMethodInfo new];
-                            const uint64_t sel = is64Bit ? [view uint64] : [view uint32];
-                            NSString *methodName = nil;
-                            if (entsize == 15) {
-                                // Pre-optimized selector
-                                methodName = [[NSString alloc] initWithCString:(const char *)sel encoding:NSUTF8StringEncoding];
-                            } else {
-                                const uint64_t loc = [view cursor];
-                                [view setCursor:[header address] + vmdiff_text + sel];
-                                methodName = [[view stringWithEncoding:NSUTF8StringEncoding] retain];
-                                [view setCursor:loc];
-                            }
-                            [mi setName:[NSString stringWithFormat:@"%c[%@ %@]", methodType, className, methodName]];
-                            [methodName release];
-                            if (is64Bit) {
-                                [view uint64]; // Skip 'types'
-                                [mi setAddress:[view uint64]];
-                            } else {
-                                [view uint32]; // Skip 'types'
-                                [mi setAddress:[view uint32]];
-                            }
-                            [methods addObject:mi];
-                            [mi release];
+                    uint32_t count = [view uint32];
+                    for (uint32_t j = 0; j < count; ++j) {
+                        SCMethodInfo *mi = [SCMethodInfo new];
+                        const uint64_t sel = is64Bit ? [view uint64] : [view uint32];
+                        NSString *methodName = nil;
+                        if (!is64Bit && ((entsize & 3) == 3)) {
+                            // Preoptimized.
+                            methodName = [[NSString alloc] initWithCString:(const char *)sel encoding:NSUTF8StringEncoding];
+                        } else {
+                            // Un-preoptimized.
+                            const uint64_t loc = [view cursor];
+                            [view setCursor:[header address] + vmdiff_text + sel];
+                            methodName = [[view stringWithEncoding:NSUTF8StringEncoding] retain];
+                            [view setCursor:loc];
                         }
+                        [mi setName:[NSString stringWithFormat:@"%c[%@ %@]", methodType, className, methodName]];
+                        [methodName release];
+                        if (is64Bit) {
+                            [view uint64]; // Skip 'types'
+                            [mi setAddress:[view uint64]];
+                        } else {
+                            [view uint32]; // Skip 'types'
+                            [mi setAddress:[view uint32]];
+                        }
+                        [methods addObject:mi];
+                        [mi release];
                     }
                 }
             }
