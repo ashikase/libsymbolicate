@@ -1,3 +1,10 @@
+> # Version 1.7.0
+> - - -
+> * NEW: Added support for symbolication of SpringBoard (and other stripped binaries) on 64-bit devices.
+>     * Symbolication only works for methods, not functions (due to stripping).
+
+- - -
+
 > # Version 1.6.0
 > - - -
 > * MOD: Moved crash report parsing portion of library to a separate library, libcrashreport.
