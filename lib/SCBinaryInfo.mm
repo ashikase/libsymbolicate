@@ -111,9 +111,11 @@ static NSArray *methodsForImageWithHeader(VMUMachOHeader *header) {
     int64_t vmdiff_data = [dataSeg fileoff] - [dataSeg vmaddr];
 
     id<VMUMemoryView> view = (id<VMUMemoryView>)[[header memory] view];
+    uint64_t viewoff = [view cursor];
+
     VMUSection *clsListSect = [dataSeg sectionNamed:@"__objc_classlist"];
     @try {
-        [view setCursor:[clsListSect offset]];
+        [view setCursor:(viewoff + [clsListSect offset])];
         const uint64_t numClasses = [clsListSect size] / (is64Bit ? sizeof(uint64_t) : sizeof(uint32_t));
         for (uint64_t i = 0; i < numClasses; ++i) {
             uint64_t class_t_address = is64Bit ? [view uint64] : [view uint32];
@@ -124,7 +126,7 @@ static NSArray *methodsForImageWithHeader(VMUMachOHeader *header) {
                 VMUSection *sect = [dataSeg sectionNamed:@"__objc_data"];
                 vmdiff_data -= (class_t_address - [sect addr]) / 0x1000 * 0x1000;
             }
-            [view setCursor:vmdiff_data + class_t_address];
+            [view setCursor:(viewoff + vmdiff_data + class_t_address)];
 
 process_class:
             // Get address for meta class.
@@ -140,7 +142,7 @@ process_class:
 
             // Confirm struct is actually class_ro_t (and not class_rw_t).
             const uint64_t class_ro_t_address = is64Bit ? [view uint64] : [view uint32];
-            [view setCursor:vmdiff_data + class_ro_t_address];
+            [view setCursor:(viewoff + vmdiff_data + class_ro_t_address)];
             const uint32_t flags = [view uint32];
             if (!(flags & RW_REALIZED)) {
                 const char methodType = (flags & 1) ? '+' : '-';
@@ -166,11 +168,11 @@ process_class:
                     [view setCursor:vmdiff_data + class_ro_t_address + 32];
                     baseMethods = [view uint64];
                 } else {
-                    [view setCursor:vmdiff_data + class_ro_t_address + 20];
+                    [view setCursor:(viewoff + vmdiff_data + class_ro_t_address + 20)];
                     baseMethods = [view uint32];
                 }
                 if (baseMethods != 0) {
-                    [view setCursor:vmdiff_data + baseMethods];
+                    [view setCursor:(viewoff + vmdiff_data + baseMethods)];
                     const uint32_t entsize = [view uint32];
                     uint32_t count = [view uint32];
                     for (uint32_t j = 0; j < count; ++j) {
@@ -202,7 +204,7 @@ process_class:
                 }
             }
             if (!(flags & RO_META)) {
-                [view setCursor:vmdiff_data + isa];
+                [view setCursor:(viewoff + vmdiff_data + isa)];
                 goto process_class;
             } else {
                 [view setCursor:next_class_t];
@@ -223,10 +225,11 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     uint64_t offset = linkCommandOffsetForHeader(header, LC_FUNCTION_STARTS);
     if (offset != 0) {
         id<VMUMemoryView> view = (id<VMUMemoryView>)[[header memory] view];
+        uint64_t viewoff = [view cursor];
         @try {
             [view setCursor:[header address] + offset + 8];
             uint32_t dataoff = [view uint32];
-            [view setCursor:dataoff];
+            [view setCursor:(viewoff + dataoff)];
             uint64_t offset;
             uint64_t symbolAddress = [[header segmentNamed:@"__TEXT"] vmaddr];
 
