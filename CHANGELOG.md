@@ -1,3 +1,9 @@
+> # Version 1.7.0.1
+> - - -
+> * FIX: Fixed support for symbolication of stripped app processes.
+
+- - -
+
 > # Version 1.7.0
 > - - -
 > * NEW: Added support for symbolication of SpringBoard (and other stripped binaries) on 64-bit devices.
