@@ -332,6 +332,8 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
                 if (architecture != nil) {
                     header = [[VMUHeader extractMachOHeadersFromHeader:header matchingArchitecture:architecture considerArchives:NO] lastObject];
                     [architecture release];
+                } else {
+                    header = nil;
                 }
             }
             if (header != nil) {
