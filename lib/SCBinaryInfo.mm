@@ -318,7 +318,7 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
                 VMUArchitecture *architecture = nil;
                 NSString *requiredArchitecture = [self architecture];
                 if ([requiredArchitecture isEqualToString:@"arm64"]) {
-                    architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM64 cpuSubtype:CPU_SUBTYPE_ARM64_V8];
+                    architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM64 cpuSubtype:CPU_SUBTYPE_ARM64_ALL];
                 } else if (
                         [requiredArchitecture isEqualToString:@"armv7s"] ||
                         [requiredArchitecture isEqualToString:@"armv7k"] ||
