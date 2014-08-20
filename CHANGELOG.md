@@ -1,3 +1,9 @@
+> # Version 1.7.0.2
+> - - -
+> * FIX: Fixed support for "arm" slices with no cpu subtype.
+
+- - -
+
 > # Version 1.7.0.1
 > - - -
 > * FIX: Fixed support for symbolication of stripped app processes.
