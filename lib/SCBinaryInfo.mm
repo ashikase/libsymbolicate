@@ -328,6 +328,8 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
                     architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V7];
                 } else if ([requiredArchitecture isEqualToString:@"armv6"]) {
                     architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V6];
+                } else if ([requiredArchitecture isEqualToString:@"arm"]) {
+                    architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_ALL];
                 }
                 if (architecture != nil) {
                     header = [[VMUHeader extractMachOHeadersFromHeader:header matchingArchitecture:architecture considerArchives:NO] lastObject];
