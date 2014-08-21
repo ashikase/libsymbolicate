@@ -312,7 +312,7 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
             if (header == nil) {
                 header = [VMUMemory_File headerWithPath:path];
             }
-            if (![header isKindOfClass:[VMUMachOHeader class]]) {
+            if ((header != nil) && ![header isKindOfClass:[VMUMachOHeader class]]) {
                 // Extract required architecture from archive.
                 // TODO: Confirm if arm7f and arm7k should use own cpu subtype.
                 VMUArchitecture *architecture = nil;
