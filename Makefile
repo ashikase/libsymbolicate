@@ -15,7 +15,7 @@ distclean:
 package: build
 	make -f Makefile.arm package
 
-sdk: build
+sdk:
 	make -f Makefile.arm sdk
 
 install:
