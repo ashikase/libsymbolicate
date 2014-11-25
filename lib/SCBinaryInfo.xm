@@ -64,7 +64,7 @@
 
 static uint64_t linkCommandOffsetForHeader(VMUMachOHeader *header, uint64_t linkCommand) {
     uint64_t cmdsize = 0;
-    Ivar ivar = class_getInstanceVariable([VMULoadCommand class], "_command");
+    Ivar ivar = class_getInstanceVariable(%c(VMULoadCommand), "_command");
     for (VMULoadCommand *lc in [header loadCommands]) {
         uint64_t cmd = (uint64_t)object_getIvar(lc, ivar);
         if (cmd == linkCommand) {
@@ -304,15 +304,15 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
                 uint64_t address = [mappedCache sharedCacheHeaderOffsetForPath:path];
                 NSString *name = [path lastPathComponent];
                 id timestamp = [mappedCache lastModifiedTimestamp];
-                header = [VMUHeader headerWithMemory:mappedCache address:address name:name path:path timestamp:timestamp];
+                header = [%c(VMUHeader) headerWithMemory:mappedCache address:address name:name path:path timestamp:timestamp];
                 if (header != nil) {
                     fromSharedCache_ = YES;
                 }
             }
             if (header == nil) {
-                header = [VMUMemory_File headerWithPath:path];
+                header = [%c(VMUMemory_File) headerWithPath:path];
             }
-            if ((header != nil) && ![header isKindOfClass:[VMUMachOHeader class]]) {
+            if ((header != nil) && ![header isKindOfClass:%c(VMUMachOHeader)]) {
                 // Extract required architecture from archive.
                 // TODO: Confirm if arm7f and arm7k should use own cpu subtype.
                 VMUArchitecture *architecture = nil;
@@ -332,7 +332,7 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
                     architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_ALL];
                 }
                 if (architecture != nil) {
-                    header = [[VMUHeader extractMachOHeadersFromHeader:header matchingArchitecture:architecture considerArchives:NO] lastObject];
+                    header = [[%c(VMUHeader) extractMachOHeadersFromHeader:header matchingArchitecture:architecture considerArchives:NO] lastObject];
                     [architecture release];
                 } else {
                     header = nil;
@@ -345,7 +345,7 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
                     uint64_t textStart = [[header segmentNamed:@"__TEXT"] vmaddr];
                     slide_ = textStart - [self address];
                     // NOTE: The following method is quite slow.
-                    owner_ = [[VMUSymbolExtractor extractSymbolOwnerFromHeader:header] retain];
+                    owner_ = [[%c(VMUSymbolExtractor) extractSymbolOwnerFromHeader:header] retain];
                     encrypted_ = isEncrypted(header);
                     executable_ = ([header fileType] == MH_EXECUTE);
 

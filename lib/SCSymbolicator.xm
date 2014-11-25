@@ -150,7 +150,7 @@ static void buildSharedCacheMap(VMUMemory_File *mappedCache) {
         // Map the cache.
         NSString *sharedCachePath = [self sharedCachePath];
         VMURange range = (VMURange){0, 0};
-        mappedCache_ = [[VMUMemory_File alloc] initWithPath:sharedCachePath fileRange:range mapToAddress:0 architecture:nil];
+        mappedCache_ = [[%c(VMUMemory_File) alloc] initWithPath:sharedCachePath fileRange:range mapToAddress:0 architecture:nil];
         if (mappedCache_ != nil) {
             buildSharedCacheMap(mappedCache_);
         } else {
