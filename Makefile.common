@@ -9,7 +9,8 @@ libsymbolicate_OBJC_FILES = \
     lib/SCSymbolicator.mm \
     lib/SCSymbolInfo.mm \
     lib/demangle.mm \
-    lib/localSymbols.mm
+    lib/localSymbols.mm \
+    lib/Symbolication.mm
 libsymbolicate_PRIVATE_FRAMEWORKS = Symbolication
 ADDITIONAL_CFLAGS = -DPKG_ID=\"$(PKG_ID)\" -ILibraries -Iinclude
 
