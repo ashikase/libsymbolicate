@@ -1,3 +1,11 @@
+> # Version 1.7.0.3
+> - - -
+> * MOD: iOS 8 / OS X 10.10
+>     * Added dummy classes to replace those missing from the Symbolication framework.
+>     * Software that depends on this library will no longer crash, but will not (yet) be able to symbolicate.
+
+- - -
+
 > # Version 1.7.0.2
 > - - -
 > * FIX: Fixed support for "arm" slices with no cpu subtype.
