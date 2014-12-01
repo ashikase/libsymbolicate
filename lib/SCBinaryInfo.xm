@@ -62,7 +62,7 @@
 #define CPU_SUBTYPE_ARM64_V8 1
 #endif
 
-static BOOL shouldUseCoreSymbolicate = YES;
+static BOOL shouldUseCoreSymbolication = YES;
 
 static uint64_t linkCommandOffsetForHeader(VMUMachOHeader *header, uint64_t linkCommand) {
     uint64_t cmdsize = 0;
@@ -399,7 +399,7 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 #else
         if (kCFCoreFoundationVersionNumber >= kCFCoreFoundationVersionNumber10_10) {
 #endif
-            shouldUseCoreSymbolicate = YES;
+            shouldUseCoreSymbolication = YES;
         }
 }
 
