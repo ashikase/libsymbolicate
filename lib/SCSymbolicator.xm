@@ -209,6 +209,7 @@ CFComparisonResult reverseCompareUnsignedLongLong(CFNumberRef a, CFNumberRef b) 
             }
 
             // Attempt to retrieve symbol name and hex offset.
+            // NOTE: (symbolAddress & ~1) is to account for Thumb.
             NSString *name = nil;
             uint64_t offset = 0;
             VMUSymbol *symbol = [owner symbolForAddress:address];
