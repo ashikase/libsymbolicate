@@ -13,6 +13,7 @@
 #import "SCSymbolicator.h"
 #include <mach-o/loader.h>
 #include <objc/runtime.h>
+#include "CoreSymbolication.h"
 
 // ABI types.
 #ifndef CPU_ARCH_ABI64
@@ -62,7 +63,52 @@
 #define CPU_SUBTYPE_ARM64_V8 1
 #endif
 
-static BOOL shouldUseCoreSymbolication = YES;
+static BOOL shouldUseCoreSymbolication = NO;
+
+uint8_t byteFromHexString(const char *string) {
+    unsigned long long result = 0;
+    int i;
+    for (i = 0; i < 2; ++i) {
+        char c = string[i];
+        if ((c >= '0') && (c <= '9')) {
+            result = result * 16 + (c - '0');
+        } else if ((c >= 'a') && (c <= 'f')) {
+            result = result * 16 + (c - 'a' + 10);
+        } else if ((c >= 'A') && (c <= 'F')) {
+            result = result * 16 + (c - 'A' + 10);
+        } else if (c != 'x') {
+            break;
+        }
+    }
+    return result;
+}
+
+CFUUIDBytes CFUUIDBytesFromCString(const char *cstring) {
+    CFUUIDBytes bytes;
+
+    size_t len = strlen(cstring);
+    if (len >= 32) {
+        unsigned i = 0;
+        bytes.byte0 =  byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte1 =  byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte2 =  byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte3 =  byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte4 =  byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte5 =  byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte6 =  byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte7 =  byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte8 =  byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte9 =  byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte10 = byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte11 = byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte12 = byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte13 = byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte14 = byteFromHexString(&cstring[i]); i += 2;
+        bytes.byte15 = byteFromHexString(&cstring[i]);
+    }
+
+    return bytes;
+}
 
 static uint64_t linkCommandOffsetForHeader(VMUMachOHeader *header, uint64_t linkCommand) {
     uint64_t cmdsize = 0;
@@ -258,6 +304,9 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 
 @implementation SCBinaryInfo {
     BOOL headerIsUnavailable_;
+
+    CSSymbolicatorRef symbolicatorRef_;
+    CSSymbolOwnerRef ownerRef_;
 }
 
 @synthesize address = address_;
@@ -285,15 +334,40 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 }
 
 - (void)dealloc {
+    if (shouldUseCoreSymbolication) {
+        if (!CSIsNull(symbolicatorRef_)) {
+            CSRelease(symbolicatorRef_);
+        }
+    } else {
+        [header_ release];
+        [owner_ release];
+    }
+
     [architecture_ release];
-    [header_ release];
     [methods_ release];
-    [owner_ release];
     [path_ release];
     [uuid_ release];
     [symbolAddresses_ release];
     [super dealloc];
 }
+
+- (NSArray *)methods {
+    if (methods_ == nil) {
+        methods_ = [methodsForImageWithHeader([self header]) retain];
+    }
+    return methods_;
+}
+
+// NOTE: The symbol addresses array is sorted greatest to least so that it can
+//       be used with CFArrayBSearchValues().
+- (NSArray *)symbolAddresses {
+    if (symbolAddresses_ == nil) {
+        symbolAddresses_ = [symbolAddressesForImageWithHeader([self header]) retain];
+    }
+    return symbolAddresses_;
+}
+
+#pragma mark - Firmware_LT_80 (Symbolication.framework)
 
 - (VMUMachOHeader *)header {
     if (header_ == nil) {
@@ -365,20 +439,39 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     return header_;
 }
 
-- (NSArray *)methods {
-    if (methods_ == nil) {
-        methods_ = [methodsForImageWithHeader([self header]) retain];
+#pragma mark - Firmware_GTE_80 (CoreSymbolication.framework)
+
+- (CSSymbolicatorRef)symbolicatorRef {
+    if (CSIsNull(symbolicatorRef_)) {
+        if (shouldUseCoreSymbolication) {
+            CSArchitecture arch = CSArchitectureGetArchitectureForName([[self architecture] UTF8String]);
+            if (arch.cpu_type != 0) {
+                CSSymbolicatorRef symbolicator = CSSymbolicatorCreateWithPathAndArchitecture([[self path] UTF8String], arch);
+                if (!CSIsNull(symbolicator)) {
+                    symbolicatorRef_ = symbolicator;
+                }
+            }
+        }
     }
-    return methods_;
+    return symbolicatorRef_;
 }
 
-// NOTE: The symbol addresses array is sorted greatest to least so that it can
-//       be used with CFArrayBSearchValues().
-- (NSArray *)symbolAddresses {
-    if (symbolAddresses_ == nil) {
-        symbolAddresses_ = [symbolAddressesForImageWithHeader([self header]) retain];
+- (CSSymbolOwnerRef)ownerRef {
+    if (CSIsNull(ownerRef_)) {
+        if (shouldUseCoreSymbolication) {
+            CSSymbolicatorRef symbolicator = [self symbolicatorRef];
+            if (!CSIsNull(symbolicator)) {
+                // NOTE: Must ignore "<>" characters in UUID string.
+                // FIXME: Do not store the UUID with these characters included.
+                CFUUIDBytes uuidBytes = CFUUIDBytesFromCString(&([[self uuid] UTF8String][1]));
+                CSSymbolOwnerRef owner = CSSymbolicatorGetSymbolOwnerWithCFUUIDBytesAtTime(symbolicator, &uuidBytes, kCSNow);
+                if (!CSIsNull(owner)) {
+                    ownerRef_ = owner;
+                }
+            }
+        }
     }
-    return symbolAddresses_;
+    return ownerRef_;
 }
 
 @end
