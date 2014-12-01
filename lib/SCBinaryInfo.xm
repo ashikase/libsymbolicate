@@ -62,6 +62,8 @@
 #define CPU_SUBTYPE_ARM64_V8 1
 #endif
 
+static BOOL shouldUseCoreSymbolicate = YES;
+
 static uint64_t linkCommandOffsetForHeader(VMUMachOHeader *header, uint64_t linkCommand) {
     uint64_t cmdsize = 0;
     Ivar ivar = class_getInstanceVariable(%c(VMULoadCommand), "_command");
@@ -380,5 +382,25 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 }
 
 @end
+
+#if TARGET_OS_IPHONE
+    #ifndef kCFCoreFoundationVersionNumber_iOS_8_0
+    #define kCFCoreFoundationVersionNumber_iOS_8_0 1140.10
+    #endif
+#else
+    #ifndef kCFCoreFoundationVersionNumber10_10
+    #define kCFCoreFoundationVersionNumber10_10 1151.16
+    #endif
+#endif
+
+%ctor {
+#if TARGET_OS_IPHONE
+        if (kCFCoreFoundationVersionNumber >= kCFCoreFoundationVersionNumber_iOS_8_0) {
+#else
+        if (kCFCoreFoundationVersionNumber >= kCFCoreFoundationVersionNumber10_10) {
+#endif
+            shouldUseCoreSymbolicate = YES;
+        }
+}
 
 /* vim: set ft=objcpp ff=unix sw=4 ts=4 tw=80 expandtab: */
