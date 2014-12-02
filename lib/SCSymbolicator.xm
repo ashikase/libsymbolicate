@@ -183,11 +183,9 @@ CFComparisonResult reverseCompareUnsignedLongLong(CFNumberRef a, CFNumberRef b) 
 - (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address inBinary:(SCBinaryInfo *)binaryInfo {
     SCSymbolInfo *symbolInfo = nil;
 
-    VMUMachOHeader *header = [binaryInfo header];
-    if (header != nil) {
+    if (binaryInfo != nil) {
         address += [binaryInfo slide];
-        VMUSymbolOwner *owner = [binaryInfo owner];
-        VMUSourceInfo *srcInfo = [owner sourceInfoForAddress:address];
+        VMUSourceInfo *srcInfo = [binaryInfo sourceInfoForAddress:address];
         if (srcInfo != nil) {
             // Store source file name and line number.
             symbolInfo = [SCSymbolInfo new];
@@ -212,13 +210,13 @@ CFComparisonResult reverseCompareUnsignedLongLong(CFNumberRef a, CFNumberRef b) 
             // NOTE: (symbolAddress & ~1) is to account for Thumb.
             NSString *name = nil;
             uint64_t offset = 0;
-            VMUSymbol *symbol = [owner symbolForAddress:address];
+            VMUSymbol *symbol = [binaryInfo symbolForAddress:address];
             if (symbol != nil && ([symbol addressRange].location == (symbolAddress & ~1) || symbolAddress == 0)) {
                 name = [symbol name];
                 if ([name isEqualToString:@"<redacted>"]) {
                     NSString *sharedCachePath = [self sharedCachePath];
                     if (sharedCachePath != nil) {
-                        NSString *localName = nameForLocalSymbol(sharedCachePath, [header address], [symbol addressRange].location);
+                        NSString *localName = nameForLocalSymbol(sharedCachePath, [binaryInfo sharedCacheOffset], [symbol addressRange].location);
                         if (localName != nil) {
                             name = localName;
                         } else {
@@ -263,7 +261,7 @@ CFComparisonResult reverseCompareUnsignedLongLong(CFNumberRef a, CFNumberRef b) 
                             name = [method name];
                             offset = address - [method address];
                         } else {
-                            uint64_t textStart = [[header segmentNamed:@"__TEXT"] vmaddr];
+                            uint64_t textStart = [[binaryInfo segmentNamed:@"__TEXT"] vmaddr];
                             name = [NSString stringWithFormat:@"0x%08llx", (symbolAddress - textStart)];
                             offset = address - symbolAddress;
                         }

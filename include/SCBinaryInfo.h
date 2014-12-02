@@ -25,6 +25,10 @@
 @property(nonatomic, readonly) int64_t slide;
 @property(nonatomic, readonly) NSArray *symbolAddresses;
 - (id)initWithPath:(NSString *)path address:(uint64_t)address architecture:(NSString *)architecture uuid:(NSString *)uuid;
+- (VMUSegmentLoadCommand *)segmentNamed:(NSString *)name;
+- (uint64_t)sharedCacheOffset;
+- (VMUSourceInfo *)sourceInfoForAddress:(uint64_t)address;
+- (VMUSymbol *)symbolForAddress:(uint64_t)address;
 @end
 
 /* vim: set ft=objcpp ff=unix sw=4 ts=4 tw=80 expandtab: */

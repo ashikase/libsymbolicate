@@ -367,6 +367,22 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     return symbolAddresses_;
 }
 
+- (VMUSegmentLoadCommand *)segmentNamed:(NSString *)name {
+    return [[self header] segmentNamed:name];
+}
+
+- (uint64_t)sharedCacheOffset {
+    return [[self header] address];
+}
+
+- (VMUSourceInfo *)sourceInfoForAddress:(uint64_t)address {
+    return [[self owner] sourceInfoForAddress:address];
+}
+
+- (VMUSymbol *)symbolForAddress:(uint64_t)address {
+    return [[self owner] symbolForAddress:address];
+}
+
 #pragma mark - Firmware_LT_80 (Symbolication.framework)
 
 - (VMUMachOHeader *)header {
