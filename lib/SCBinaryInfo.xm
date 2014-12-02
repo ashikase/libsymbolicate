@@ -379,17 +379,14 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 }
 
 - (void)dealloc {
-    if (shouldUseCoreSymbolication) {
-        if (!CSIsNull(symbolicatorRef_)) {
-            CSRelease(symbolicatorRef_);
-        }
-    } else {
-        [header_ release];
-        [owner_ release];
+    if (!CSIsNull(symbolicatorRef_)) {
+        CSRelease(symbolicatorRef_);
     }
 
     [architecture_ release];
+    [header_ release];
     [methods_ release];
+    [owner_ release];
     [path_ release];
     [uuid_ release];
     [symbolAddresses_ release];
@@ -555,13 +552,11 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 
 - (CSSymbolicatorRef)symbolicatorRef {
     if (CSIsNull(symbolicatorRef_)) {
-        if (shouldUseCoreSymbolication) {
-            CSArchitecture arch = architectureForName([[self architecture] UTF8String]);
-            if (arch.cpu_type != 0) {
-                CSSymbolicatorRef symbolicator = CSSymbolicatorCreateWithPathAndArchitecture([[self path] UTF8String], arch);
-                if (!CSIsNull(symbolicator)) {
-                    symbolicatorRef_ = symbolicator;
-                }
+        CSArchitecture arch = architectureForName([[self architecture] UTF8String]);
+        if (arch.cpu_type != 0) {
+            CSSymbolicatorRef symbolicator = CSSymbolicatorCreateWithPathAndArchitecture([[self path] UTF8String], arch);
+            if (!CSIsNull(symbolicator)) {
+                symbolicatorRef_ = symbolicator;
             }
         }
     }
@@ -570,18 +565,16 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 
 - (CSSymbolOwnerRef)ownerRef {
     if (CSIsNull(ownerRef_)) {
-        if (shouldUseCoreSymbolication) {
-            CSSymbolicatorRef symbolicator = [self symbolicatorRef];
-            if (!CSIsNull(symbolicator)) {
-                // NOTE: Must ignore "<>" characters in UUID string.
-                // FIXME: Do not store the UUID with these characters included.
-                CFUUIDRef uuid = CFUUIDCreateFromUnformattedCString(&([[self uuid] UTF8String][1]));
-                CSSymbolOwnerRef owner = CSSymbolicatorGetSymbolOwnerWithUUIDAtTime(symbolicator, uuid, kCSNow);
-                if (!CSIsNull(owner)) {
-                    ownerRef_ = owner;
-                }
-                CFRelease(uuid);
+        CSSymbolicatorRef symbolicator = [self symbolicatorRef];
+        if (!CSIsNull(symbolicator)) {
+            // NOTE: Must ignore "<>" characters in UUID string.
+            // FIXME: Do not store the UUID with these characters included.
+            CFUUIDRef uuid = CFUUIDCreateFromUnformattedCString(&([[self uuid] UTF8String][1]));
+            CSSymbolOwnerRef owner = CSSymbolicatorGetSymbolOwnerWithUUIDAtTime(symbolicator, uuid, kCSNow);
+            if (!CSIsNull(owner)) {
+                ownerRef_ = owner;
             }
+            CFRelease(uuid);
         }
     }
     return ownerRef_;
