@@ -11,6 +11,8 @@
 
 #import "SCMethodInfo.h"
 #import "SCSymbolicator.h"
+#import "SCSymbolInfo.h"
+
 #include <mach-o/loader.h>
 #include <objc/runtime.h>
 #include "CoreSymbolication.h"
@@ -65,49 +67,90 @@
 
 static BOOL shouldUseCoreSymbolication = NO;
 
-uint8_t byteFromHexString(const char *string) {
-    unsigned long long result = 0;
-    int i;
-    for (i = 0; i < 2; ++i) {
-        char c = string[i];
-        if ((c >= '0') && (c <= '9')) {
-            result = result * 16 + (c - '0');
-        } else if ((c >= 'a') && (c <= 'f')) {
-            result = result * 16 + (c - 'a' + 10);
-        } else if ((c >= 'A') && (c <= 'F')) {
-            result = result * 16 + (c - 'A' + 10);
-        } else if (c != 'x') {
-            break;
-        }
+// NOTE: CoreSymbolication provides a similar function, but it is not available
+//       in earlier versions of iOS.
+// TODO: Determine from which version the function is available.
+static CSArchitecture architectureForName(const char *name) {
+    CSArchitecture arch;
+
+    if (strcmp(name, "arm64") == 0) {
+        arch.cpu_type = CPU_TYPE_ARM64;
+        arch.cpu_subtype = CPU_SUBTYPE_ARM64_ALL;
+    } else if (
+            (strcmp(name, "armv7s") == 0) ||
+            (strcmp(name, "armv7k") == 0) ||
+            (strcmp(name, "armv7f") == 0)) {
+        arch.cpu_type = CPU_TYPE_ARM;
+        arch.cpu_subtype = CPU_SUBTYPE_ARM_V7S;
+    } else if (strcmp(name, "armv7") == 0) {
+        arch.cpu_type = CPU_TYPE_ARM;
+        arch.cpu_subtype = CPU_SUBTYPE_ARM_V7;
+    } else if (strcmp(name, "armv6") == 0) {
+        arch.cpu_type = CPU_TYPE_ARM;
+        arch.cpu_subtype = CPU_SUBTYPE_ARM_V6;
+    } else if (strcmp(name, "arm") == 0) {
+        arch.cpu_type = CPU_TYPE_ARM;
+        arch.cpu_subtype = CPU_SUBTYPE_ARM_ALL;
+    } else {
+        arch.cpu_type = 0;
+        arch.cpu_subtype = 0;
     }
-    return result;
+
+    return arch;
 }
 
-CFUUIDBytes CFUUIDBytesFromCString(const char *cstring) {
-    CFUUIDBytes bytes;
+// NOTE: CFUUIDCreateFromString() does not support unhyphenated UUID strings.
+//       UUID must be hyphenated, must follow pattern "8-4-4-4-12".
+CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
+    CFUUIDRef uuid = NULL;
 
-    size_t len = strlen(cstring);
-    if (len >= 32) {
+    if (strlen(string) >= 32) {
+        // Create buffer large enough to hold UUID, four hyphens, and null char.
+        char buf[37];
+
         unsigned i = 0;
-        bytes.byte0 =  byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte1 =  byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte2 =  byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte3 =  byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte4 =  byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte5 =  byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte6 =  byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte7 =  byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte8 =  byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte9 =  byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte10 = byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte11 = byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte12 = byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte13 = byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte14 = byteFromHexString(&cstring[i]); i += 2;
-        bytes.byte15 = byteFromHexString(&cstring[i]);
+        unsigned j = 0;
+
+        for (; i < 8; ++i, ++j) {
+            buf[j] = string[i];
+        }
+
+        buf[j++] = '-';
+
+        for (; i < 12; ++i, ++j) {
+            buf[j] = string[i];
+        }
+
+        buf[j++] = '-';
+
+        for (; i < 16; ++i, ++j) {
+            buf[j] = string[i];
+        }
+
+        buf[j++] = '-';
+
+        for (; i < 20; ++i, ++j) {
+            buf[j] = string[i];
+        }
+
+        buf[j++] = '-';
+
+        for (; i < 32; ++i, ++j) {
+            buf[j] = string[i];
+        }
+
+        buf[j] = '\0';
+
+        fprintf(stderr, "%s = %s\n", string, buf);
+
+        CFStringRef stringRef = CFStringCreateWithCString(kCFAllocatorDefault, buf, kCFStringEncodingASCII);
+        if (stringRef != NULL) {
+            uuid = CFUUIDCreateFromString(kCFAllocatorDefault, stringRef);
+            CFRelease(stringRef);
+        }
     }
 
-    return bytes;
+    return uuid;
 }
 
 static uint64_t linkCommandOffsetForHeader(VMUMachOHeader *header, uint64_t linkCommand) {
@@ -394,8 +437,43 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     return [[self owner] sourceInfoForAddress:address];
 }
 
-- (VMUSymbol *)symbolForAddress:(uint64_t)address {
-    return [[self owner] symbolForAddress:address];
+- (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address {
+    SCSymbolInfo *symbolInfo = nil;
+
+    const char *name = NULL;
+    SCAddressRange addressRange;
+
+    if (shouldUseCoreSymbolication) {
+        CSSymbolOwnerRef owner = [self ownerRef];
+        if (!CSIsNull(owner)) {
+            CSSymbolRef symbol = CSSymbolOwnerGetSymbolWithAddress(owner, address);
+            if (!CSIsNull(symbol)) {
+                symbolInfo = [[[SCSymbolInfo alloc] init] autorelease];
+                CSRange range = CSSymbolGetRange(symbol);
+                addressRange = (SCAddressRange){range.location, range.length};
+                name = CSSymbolGetName(symbol);
+            }
+        }
+    } else {
+        VMUSymbol *symbol = [[self owner] symbolForAddress:address];
+        if (symbol != nil) {
+            symbolInfo = [[[SCSymbolInfo alloc] init] autorelease];
+            VMURange range = [symbol addressRange];
+            addressRange = (SCAddressRange){range.location, range.length};
+            name = [[symbol name] UTF8String];
+        }
+    }
+
+    if (name != nil) {
+        symbolInfo = [[[SCSymbolInfo alloc] init] autorelease];
+        [symbolInfo setAddressRange:addressRange];
+
+        NSString *string = [[NSString alloc] initWithUTF8String:name];
+        [symbolInfo setName:string];
+        [string release];
+    }
+
+    return symbolInfo;
 }
 
 #pragma mark - Firmware_LT_80 (Symbolication.framework)
@@ -478,7 +556,7 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 - (CSSymbolicatorRef)symbolicatorRef {
     if (CSIsNull(symbolicatorRef_)) {
         if (shouldUseCoreSymbolication) {
-            CSArchitecture arch = CSArchitectureGetArchitectureForName([[self architecture] UTF8String]);
+            CSArchitecture arch = architectureForName([[self architecture] UTF8String]);
             if (arch.cpu_type != 0) {
                 CSSymbolicatorRef symbolicator = CSSymbolicatorCreateWithPathAndArchitecture([[self path] UTF8String], arch);
                 if (!CSIsNull(symbolicator)) {
@@ -497,11 +575,12 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
             if (!CSIsNull(symbolicator)) {
                 // NOTE: Must ignore "<>" characters in UUID string.
                 // FIXME: Do not store the UUID with these characters included.
-                CFUUIDBytes uuidBytes = CFUUIDBytesFromCString(&([[self uuid] UTF8String][1]));
-                CSSymbolOwnerRef owner = CSSymbolicatorGetSymbolOwnerWithCFUUIDBytesAtTime(symbolicator, &uuidBytes, kCSNow);
+                CFUUIDRef uuid = CFUUIDCreateFromUnformattedCString(&([[self uuid] UTF8String][1]));
+                CSSymbolOwnerRef owner = CSSymbolicatorGetSymbolOwnerWithUUIDAtTime(symbolicator, uuid, kCSNow);
                 if (!CSIsNull(owner)) {
                     ownerRef_ = owner;
                 }
+                CFRelease(uuid);
             }
         }
     }

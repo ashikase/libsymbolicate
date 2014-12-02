@@ -7,8 +7,14 @@
  * License: LGPL v3 (See LICENSE file for details)
  */
 
+typedef struct _SCAddressRange {
+    uint64_t location;
+    uint64_t length;
+} SCAddressRange;
+
 @interface SCSymbolInfo : NSObject
 @property(nonatomic, copy) NSString *name;
+@property(nonatomic) SCAddressRange addressRange;
 @property(nonatomic) uint64_t offset;
 @property(nonatomic, copy) NSString *sourcePath;
 @property(nonatomic) NSUInteger sourceLineNumber;

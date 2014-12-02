@@ -210,25 +210,25 @@ CFComparisonResult reverseCompareUnsignedLongLong(CFNumberRef a, CFNumberRef b) 
             // NOTE: (symbolAddress & ~1) is to account for Thumb.
             NSString *name = nil;
             uint64_t offset = 0;
-            VMUSymbol *symbol = [binaryInfo symbolForAddress:address];
-            if (symbol != nil && ([symbol addressRange].location == (symbolAddress & ~1) || symbolAddress == 0)) {
-                name = [symbol name];
+            symbolInfo = [binaryInfo symbolInfoForAddress:address];
+            if (symbolInfo != nil && ([symbolInfo addressRange].location == (symbolAddress & ~1) || symbolAddress == 0)) {
+                name = [symbolInfo name];
                 if ([name isEqualToString:@"<redacted>"]) {
                     NSString *sharedCachePath = [self sharedCachePath];
                     if (sharedCachePath != nil) {
-                        NSString *localName = nameForLocalSymbol(sharedCachePath, [binaryInfo sharedCacheOffset], [symbol addressRange].location);
+                        NSString *localName = nameForLocalSymbol(sharedCachePath, [binaryInfo sharedCacheOffset], [symbolInfo addressRange].location);
                         if (localName != nil) {
                             name = localName;
                         } else {
-                            fprintf(stderr, "Unable to determine name for: %s, 0x%08llx\n", [[binaryInfo path] UTF8String], [symbol addressRange].location);
+                            fprintf(stderr, "Unable to determine name for: %s, 0x%08llx\n", [[binaryInfo path] UTF8String], [symbolInfo addressRange].location);
                         }
                     }
                 }
                 // Attempt to demangle name
                 // NOTE: It seems that Apple's demangler fails for some
                 //       names, so we attempt to do it ourselves.
-                name = demangle(name);
-                offset = address - [symbol addressRange].location;
+                [symbolInfo setName:demangle(name)];
+                [symbolInfo setOffset:(address - [symbolInfo addressRange].location)];
             } else {
                 NSDictionary *symbolMap = [[self symbolMaps] objectForKey:[binaryInfo path]];
                 if (symbolMap != nil) {
@@ -267,17 +267,17 @@ CFComparisonResult reverseCompareUnsignedLongLong(CFNumberRef a, CFNumberRef b) 
                         }
                     }
                 }
-            }
 
-            if (name != nil) {
-                symbolInfo = [SCSymbolInfo new];
-                [symbolInfo setName:name];
-                [symbolInfo setOffset:offset];
+                if (name != nil) {
+                    symbolInfo = [[[SCSymbolInfo alloc] init] autorelease];
+                    [symbolInfo setName:name];
+                    [symbolInfo setOffset:offset];
+                }
             }
         }
     }
 
-    return [symbolInfo autorelease];
+    return symbolInfo;
 }
 
 @end

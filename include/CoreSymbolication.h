@@ -53,7 +53,7 @@ extern "C" {
 
     // CSSymbolicator
     CSSymbolicatorRef CSSymbolicatorCreateWithPathAndArchitecture(const char *path, CSArchitecture arch);
-    CSSymbolOwnerRef CSSymbolicatorGetSymbolOwnerWithCFUUIDBytesAtTime(CSSymbolicatorRef symbolicator, CFUUIDBytes *uuid, uint64_t time);
+    CSSymbolOwnerRef CSSymbolicatorGetSymbolOwnerWithUUIDAtTime(CSSymbolicatorRef symbolicator, CFUUIDRef uuid, uint64_t time);
 
     // CSSymbolOwner
     long CSSymbolOwnerForeachSymbol(CSSymbolOwnerRef owner, CSSymbolIterator block);

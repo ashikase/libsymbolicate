@@ -11,6 +11,8 @@
 
 #include "Headers.h"
 
+@class SCSymbolInfo;
+
 @interface SCBinaryInfo : NSObject
 @property(nonatomic, readonly) uint64_t address;
 @property(nonatomic, readonly) NSString *architecture;
@@ -26,7 +28,7 @@
 - (VMUSegmentLoadCommand *)segmentNamed:(NSString *)name;
 - (uint64_t)sharedCacheOffset;
 - (VMUSourceInfo *)sourceInfoForAddress:(uint64_t)address;
-- (VMUSymbol *)symbolForAddress:(uint64_t)address;
+- (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address;
 @end
 
 /* vim: set ft=objcpp ff=unix sw=4 ts=4 tw=80 expandtab: */
