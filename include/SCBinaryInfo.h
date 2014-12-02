@@ -17,9 +17,7 @@
 @property(nonatomic, readonly, getter = isEncrypted) BOOL encrypted;
 @property(nonatomic, readonly, getter = isExecutable) BOOL executable;
 @property(nonatomic, readonly, getter = isFromSharedCache) BOOL fromSharedCache;
-@property(nonatomic, readonly) VMUMachOHeader *header;
 @property(nonatomic, readonly) NSArray *methods;
-@property(nonatomic, readonly) VMUSymbolOwner *owner;
 @property(nonatomic, readonly) NSString *path;
 @property(nonatomic, readonly) NSString *uuid;
 @property(nonatomic, readonly) int64_t slide;

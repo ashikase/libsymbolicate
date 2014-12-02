@@ -305,6 +305,9 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 @implementation SCBinaryInfo {
     BOOL headerIsUnavailable_;
 
+    VMUMachOHeader *header_;
+    VMUSymbolOwner *owner_;
+
     CSSymbolicatorRef symbolicatorRef_;
     CSSymbolOwnerRef ownerRef_;
 }
@@ -312,9 +315,7 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 @synthesize address = address_;
 @synthesize architecture = architecture_;
 @synthesize fromSharedCache = fromSharedCache_;
-@synthesize header = header_;
 @synthesize methods = methods_;
-@synthesize owner = owner_;
 @synthesize path = path_;
 @synthesize symbolAddresses = symbolAddresses_;
 @synthesize uuid = uuid_;
