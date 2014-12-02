@@ -436,8 +436,6 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
                 if ([uuid isEqualToString:[self uuid]]) {
                     uint64_t textStart = [[header segmentNamed:@"__TEXT"] vmaddr];
                     slide_ = textStart - [self address];
-                    // NOTE: The following method is quite slow.
-                    owner_ = [[%c(VMUSymbolExtractor) extractSymbolOwnerFromHeader:header] retain];
                     encrypted_ = isEncrypted(header);
                     executable_ = ([header fileType] == MH_EXECUTE);
 
@@ -453,6 +451,16 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
         }
     }
     return header_;
+}
+
+- (VMUSymbolOwner *)owner {
+    if (owner_ == nil) {
+        if (!headerIsUnavailable_) {
+            // NOTE: The following method is quite slow.
+            owner_ = [[%c(VMUSymbolExtractor) extractSymbolOwnerFromHeader:[self header]] retain];
+        }
+    }
+    return owner_;
 }
 
 #pragma mark - Firmware_GTE_80 (CoreSymbolication.framework)
