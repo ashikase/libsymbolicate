@@ -141,8 +141,6 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
 
         buf[j] = '\0';
 
-        fprintf(stderr, "%s = %s\n", string, buf);
-
         CFStringRef stringRef = CFStringCreateWithCString(kCFAllocatorDefault, buf, kCFStringEncodingASCII);
         if (stringRef != NULL) {
             uuid = CFUUIDCreateFromString(kCFAllocatorDefault, stringRef);
