@@ -311,16 +311,17 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 
 @synthesize address = address_;
 @synthesize architecture = architecture_;
-@synthesize encrypted = encrypted_;
-@synthesize executable = executable_;
 @synthesize fromSharedCache = fromSharedCache_;
 @synthesize header = header_;
 @synthesize methods = methods_;
 @synthesize owner = owner_;
 @synthesize path = path_;
-@synthesize slide = slide_;
 @synthesize symbolAddresses = symbolAddresses_;
 @synthesize uuid = uuid_;
+
+@dynamic encrypted;
+@dynamic executable;
+@dynamic slide;
 
 - (id)initWithPath:(NSString *)path address:(uint64_t)address architecture:(NSString *)architecture uuid:(NSString *)uuid {
     self = [super init];
@@ -351,11 +352,24 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     [super dealloc];
 }
 
+- (BOOL)isEncrypted {
+    return isEncrypted([self header]);
+}
+
+- (BOOL)isExecutable {
+    return ([[self header] fileType] == MH_EXECUTE);
+}
+
 - (NSArray *)methods {
     if (methods_ == nil) {
         methods_ = [methodsForImageWithHeader([self header]) retain];
     }
     return methods_;
+}
+
+- (int64_t)slide {
+    uint64_t textStart = [[[self header] segmentNamed:@"__TEXT"] vmaddr];
+    return (textStart - [self address]);
 }
 
 // NOTE: The symbol addresses array is sorted greatest to least so that it can
@@ -434,11 +448,6 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
                 // Check UUID signature of binary.
                 NSString *uuid = [[[header uuid] description] stringByReplacingOccurrencesOfString:@" " withString:@""];
                 if ([uuid isEqualToString:[self uuid]]) {
-                    uint64_t textStart = [[header segmentNamed:@"__TEXT"] vmaddr];
-                    slide_ = textStart - [self address];
-                    encrypted_ = isEncrypted(header);
-                    executable_ = ([header fileType] == MH_EXECUTE);
-
                     header_ = [header retain];
                 } else {
                     fprintf(stderr, "INFO: Symbolicating device does not have required version of binary image: %s\n", [path UTF8String]);
