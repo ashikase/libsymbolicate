@@ -16,6 +16,7 @@
 #include <mach-o/loader.h>
 #include <objc/runtime.h>
 #include "CoreSymbolication.h"
+#include "methods.h"
 
 // ABI types.
 #ifndef CPU_ARCH_ABI64
@@ -184,130 +185,6 @@ static BOOL isEncrypted(VMUMachOHeader *header) {
     return isEncrypted;
 }
 
-#define RO_META     (1 << 0)
-#define RW_REALIZED (1 << 31)
-
-static NSArray *methodsForImageWithHeader(VMUMachOHeader *header) {
-    NSMutableArray *methods = [NSMutableArray array];
-
-    const BOOL isFromSharedCache = [header respondsToSelector:@selector(isFromSharedCache)] && [header isFromSharedCache];
-    const BOOL is64Bit = [header isMachO64];
-
-    VMUSegmentLoadCommand *textSeg = [header segmentNamed:@"__TEXT"];
-    int64_t vmdiff_text = [textSeg fileoff] - [textSeg vmaddr];
-
-    VMUSegmentLoadCommand *dataSeg = [header segmentNamed:@"__DATA"];
-    int64_t vmdiff_data = [dataSeg fileoff] - [dataSeg vmaddr];
-
-    id<VMUMemoryView> view = (id<VMUMemoryView>)[[header memory] view];
-    uint64_t viewoff = [view cursor];
-
-    VMUSection *clsListSect = [dataSeg sectionNamed:@"__objc_classlist"];
-    @try {
-        [view setCursor:(viewoff + [clsListSect offset])];
-        const uint64_t numClasses = [clsListSect size] / (is64Bit ? sizeof(uint64_t) : sizeof(uint32_t));
-        for (uint64_t i = 0; i < numClasses; ++i) {
-            uint64_t class_t_address = is64Bit ? [view uint64] : [view uint32];
-            uint64_t next_class_t = [view cursor];
-
-            if (i == 0 && isFromSharedCache) {
-                // FIXME: Determine what this offset is and how to properly obtain it.
-                VMUSection *sect = [dataSeg sectionNamed:@"__objc_data"];
-                vmdiff_data -= (class_t_address - [sect addr]) / 0x1000 * 0x1000;
-            }
-            [view setCursor:(viewoff + vmdiff_data + class_t_address)];
-
-process_class:
-            // Get address for meta class.
-            // NOTE: This is needed for retrieving class (non-instance) methods.
-            uint64_t isa;
-            if (is64Bit) {
-                isa = [view uint64];
-                [view advanceCursor:24];
-            } else {
-                isa = [view uint32];
-                [view advanceCursor:12];
-            }
-
-            // Confirm struct is actually class_ro_t (and not class_rw_t).
-            const uint64_t class_ro_t_address = is64Bit ? [view uint64] : [view uint32];
-            [view setCursor:(viewoff + vmdiff_data + class_ro_t_address)];
-            const uint32_t flags = [view uint32];
-            if (!(flags & RW_REALIZED)) {
-                const char methodType = (flags & 1) ? '+' : '-';
-
-                uint64_t class_ro_t_name;
-                if (is64Bit) {
-                    [view advanceCursor:20];
-                    class_ro_t_name = [view uint64];
-                } else {
-                    [view advanceCursor:12];
-                    class_ro_t_name = [view uint32];
-                }
-                if (i == 0 && isFromSharedCache && !(flags & RO_META)) {
-                    // FIXME: Determine what this offset is and how to properly obtain it.
-                    VMUSection *sect = [textSeg sectionNamed:@"__objc_classname"];
-                    vmdiff_text -= (class_ro_t_name - [sect addr]) / 0x1000 * 0x1000;
-                }
-                [view setCursor:[header address] + vmdiff_text + class_ro_t_name];
-                NSString *className = [view stringWithEncoding:NSUTF8StringEncoding];
-
-                uint64_t baseMethods;
-                if (is64Bit) {
-                    [view setCursor:vmdiff_data + class_ro_t_address + 32];
-                    baseMethods = [view uint64];
-                } else {
-                    [view setCursor:(viewoff + vmdiff_data + class_ro_t_address + 20)];
-                    baseMethods = [view uint32];
-                }
-                if (baseMethods != 0) {
-                    [view setCursor:(viewoff + vmdiff_data + baseMethods)];
-                    const uint32_t entsize = [view uint32];
-                    uint32_t count = [view uint32];
-                    for (uint32_t j = 0; j < count; ++j) {
-                        SCMethodInfo *mi = [SCMethodInfo new];
-                        const uint64_t sel = is64Bit ? [view uint64] : [view uint32];
-                        NSString *methodName = nil;
-                        if (!is64Bit && ((entsize & 3) == 3)) {
-                            // Preoptimized.
-                            methodName = [[NSString alloc] initWithCString:(const char *)sel encoding:NSUTF8StringEncoding];
-                        } else {
-                            // Un-preoptimized.
-                            const uint64_t loc = [view cursor];
-                            [view setCursor:[header address] + vmdiff_text + sel];
-                            methodName = [[view stringWithEncoding:NSUTF8StringEncoding] retain];
-                            [view setCursor:loc];
-                        }
-                        [mi setName:[NSString stringWithFormat:@"%c[%@ %@]", methodType, className, methodName]];
-                        [methodName release];
-                        if (is64Bit) {
-                            [view uint64]; // Skip 'types'
-                            [mi setAddress:[view uint64]];
-                        } else {
-                            [view uint32]; // Skip 'types'
-                            [mi setAddress:[view uint32]];
-                        }
-                        [methods addObject:mi];
-                        [mi release];
-                    }
-                }
-            }
-            if (!(flags & RO_META)) {
-                [view setCursor:(viewoff + vmdiff_data + isa)];
-                goto process_class;
-            } else {
-                [view setCursor:next_class_t];
-            }
-        }
-    } @catch (NSException *exception) {
-        fprintf(stderr, "WARNING: Exception '%s' generated when extracting methods for %s.\n",
-                [[exception reason] UTF8String], [[header path] UTF8String]);
-    }
-
-    [methods sortUsingFunction:(NSInteger (*)(id, id, void *))reversedCompareMethodInfos context:NULL];
-    return methods;
-}
-
 static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     NSMutableArray *addresses = [NSMutableArray new];
 
@@ -401,7 +278,30 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 
 - (NSArray *)methods {
     if (methods_ == nil) {
-        methods_ = [methodsForImageWithHeader([self header]) retain];
+        cpu_type_t cputype = CPU_TYPE_ANY;
+        cpu_subtype_t cpusubtype = CPU_SUBTYPE_MULTIPLE;
+
+        NSString *requiredArchitecture = [self architecture];
+        if ([requiredArchitecture isEqualToString:@"arm64"]) {
+            cputype = CPU_TYPE_ARM64;
+            cpusubtype = CPU_SUBTYPE_ARM64_ALL;
+        } else if (
+                [requiredArchitecture isEqualToString:@"armv7s"] ||
+                [requiredArchitecture isEqualToString:@"armv7k"] ||
+                [requiredArchitecture isEqualToString:@"armv7f"]) {
+            cputype = CPU_TYPE_ARM;
+            cpusubtype = CPU_SUBTYPE_ARM_V7S;
+        } else if ([requiredArchitecture isEqualToString:@"armv7"]) {
+            cputype = CPU_TYPE_ARM;
+            cpusubtype = CPU_SUBTYPE_ARM_V7;
+        } else if ([requiredArchitecture isEqualToString:@"armv6"]) {
+            cputype = CPU_TYPE_ARM;
+            cpusubtype = CPU_SUBTYPE_ARM_V6;
+        } else if ([requiredArchitecture isEqualToString:@"arm"]) {
+            cputype = CPU_TYPE_ARM;
+            cpusubtype = CPU_SUBTYPE_ARM_ALL;
+        }
+        methods_ = [methodsForBinaryFile([[self path] UTF8String], cputype, cpusubtype) retain];
     }
     return methods_;
 }
