@@ -59,6 +59,7 @@ NSString *nameForLocalSymbol(NSString *sharedCachePath, uint64_t dylibOffset, ui
     struct stat st;
     if (fstat(fd, &st) < 0) {
         fprintf(stderr, "Failed to fstat() the shared cache file.\n");
+        close(fd);
         return nil;
     }
 
@@ -67,6 +68,7 @@ NSString *nameForLocalSymbol(NSString *sharedCachePath, uint64_t dylibOffset, ui
     if (read(fd, header, headerSize) < 0) {
         fprintf(stderr, "Failed to read the shared cache header.\n");
         free(header);
+        close(fd);
         return nil;
     }
     // NOTE: Local symbol offset/size fields did not exist in earlier firmware.
