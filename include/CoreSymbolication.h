@@ -19,7 +19,7 @@ typedef struct _CSTypeRef {
 } CSTypeRef;
 
 //typedef CSTypeRef CSRegionRef;
-//typedef CSTypeRef CSSourceInfoRef;
+typedef CSTypeRef CSSourceInfoRef;
 typedef CSTypeRef CSSymbolicatorRef;
 typedef CSTypeRef CSSymbolOwnerRef;
 //typedef CSTypeRef CSSectionRef;
@@ -51,12 +51,17 @@ extern "C" {
     // CSArchitecture
     CSArchitecture CSArchitectureGetArchitectureForName(const char *arch);
 
+    // CSSourceInfo
+    int CSSourceInfoGetLineNumber(CSSourceInfoRef info);
+    const char * CSSourceInfoGetPath(CSSourceInfoRef info);
+
     // CSSymbolicator
     CSSymbolicatorRef CSSymbolicatorCreateWithPathAndArchitecture(const char *path, CSArchitecture arch);
     CSSymbolOwnerRef CSSymbolicatorGetSymbolOwnerWithUUIDAtTime(CSSymbolicatorRef symbolicator, CFUUIDRef uuid, uint64_t time);
 
     // CSSymbolOwner
     long CSSymbolOwnerForeachSymbol(CSSymbolOwnerRef owner, CSSymbolIterator block);
+    CSSourceInfoRef CSSymbolOwnerGetSourceInfoWithAddress(CSSymbolOwnerRef owner, uint64_t addr);
     CSSymbolRef CSSymbolOwnerGetSymbolWithAddress(CSSymbolOwnerRef owner, uint64_t addr);
 
     // CSSymbol

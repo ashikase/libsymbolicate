@@ -27,7 +27,7 @@
 - (id)initWithPath:(NSString *)path address:(uint64_t)address architecture:(NSString *)architecture uuid:(NSString *)uuid;
 - (VMUSegmentLoadCommand *)segmentNamed:(NSString *)name;
 - (uint64_t)sharedCacheOffset;
-- (VMUSourceInfo *)sourceInfoForAddress:(uint64_t)address;
+- (SCSymbolInfo *)sourceInfoForAddress:(uint64_t)address;
 - (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address;
 @end
 

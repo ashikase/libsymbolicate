@@ -185,13 +185,8 @@ CFComparisonResult reverseCompareUnsignedLongLong(CFNumberRef a, CFNumberRef b) 
 
     if (binaryInfo != nil) {
         address += [binaryInfo slide];
-        VMUSourceInfo *srcInfo = [binaryInfo sourceInfoForAddress:address];
-        if (srcInfo != nil) {
-            // Store source file name and line number.
-            symbolInfo = [SCSymbolInfo new];
-            [symbolInfo setSourcePath:[srcInfo path]];
-            [symbolInfo setSourceLineNumber:[srcInfo lineNumber]];
-        } else {
+        symbolInfo = [binaryInfo sourceInfoForAddress:address];
+        if (symbolInfo == nil) {
             // Determine symbol address.
             // NOTE: Only possible if LC_FUNCTION_STARTS exists in the binary.
             uint64_t symbolAddress = 0;

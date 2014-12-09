@@ -315,7 +315,28 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 //       be used with CFArrayBSearchValues().
 - (NSArray *)symbolAddresses {
     if (symbolAddresses_ == nil) {
-        symbolAddresses_ = [symbolAddressesForImageWithHeader([self header]) retain];
+        NSMutableArray *addresses = [[NSMutableArray alloc] init];
+
+        CSSymbolOwnerRef owner = [self ownerRef];
+        if (!CSIsNull(owner)) {
+            CSSymbolOwnerForeachSymbol(owner, ^(CSSymbolRef symbol) {
+                if (CSSymbolIsFunction(symbol)) {
+                    CSRange range = CSSymbolGetRange(symbol);
+                    NSNumber *symbolAddress = [[NSNumber alloc] initWithUnsignedLongLong:(range.location)];
+                    [addresses addObject:symbolAddress];
+                    [symbolAddress release];
+                }
+                return 0;
+            });
+        }
+        NSArray *sortedAddresses = [addresses sortedArrayUsingFunction:(NSInteger (*)(id, id, void *))CFNumberCompare context:NULL];
+        [addresses release];
+
+        NSMutableArray *reverseSortedAddresses = [[NSMutableArray alloc] init];
+        for (NSNumber *number in [sortedAddresses reverseObjectEnumerator]) {
+            [reverseSortedAddresses addObject:number];
+        }
+        symbolAddresses_ = reverseSortedAddresses;
     }
     return symbolAddresses_;
 }
@@ -328,8 +349,31 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     return [[self header] address];
 }
 
-- (VMUSourceInfo *)sourceInfoForAddress:(uint64_t)address {
-    return [[self owner] sourceInfoForAddress:address];
+- (SCSymbolInfo *)sourceInfoForAddress:(uint64_t)address {
+    SCSymbolInfo *symbolInfo = nil;
+
+    const char *path = NULL;
+    unsigned lineNumber = 0;
+
+    CSSymbolOwnerRef owner = [self ownerRef];
+    if (!CSIsNull(owner)) {
+        CSSourceInfoRef sourceInfo = CSSymbolOwnerGetSourceInfoWithAddress(owner, address);
+        if (!CSIsNull(sourceInfo)) {
+            lineNumber = CSSourceInfoGetLineNumber(sourceInfo);
+            path = CSSourceInfoGetPath(sourceInfo);
+        }
+    }
+
+    if (path != nil) {
+        symbolInfo = [[[SCSymbolInfo alloc] init] autorelease];
+        [symbolInfo setSourceLineNumber:lineNumber];
+
+        NSString *string = [[NSString alloc] initWithUTF8String:path];
+        [symbolInfo setSourcePath:string];
+        [string release];
+    }
+
+    return symbolInfo;
 }
 
 - (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address {
@@ -338,24 +382,13 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     const char *name = NULL;
     SCAddressRange addressRange;
 
-    if (shouldUseCoreSymbolication) {
-        CSSymbolOwnerRef owner = [self ownerRef];
-        if (!CSIsNull(owner)) {
-            CSSymbolRef symbol = CSSymbolOwnerGetSymbolWithAddress(owner, address);
-            if (!CSIsNull(symbol)) {
-                symbolInfo = [[[SCSymbolInfo alloc] init] autorelease];
-                CSRange range = CSSymbolGetRange(symbol);
-                addressRange = (SCAddressRange){range.location, range.length};
-                name = CSSymbolGetName(symbol);
-            }
-        }
-    } else {
-        VMUSymbol *symbol = [[self owner] symbolForAddress:address];
-        if (symbol != nil) {
-            symbolInfo = [[[SCSymbolInfo alloc] init] autorelease];
-            VMURange range = [symbol addressRange];
+    CSSymbolOwnerRef owner = [self ownerRef];
+    if (!CSIsNull(owner)) {
+        CSSymbolRef symbol = CSSymbolOwnerGetSymbolWithAddress(owner, address);
+        if (!CSIsNull(symbol)) {
+            CSRange range = CSSymbolGetRange(symbol);
             addressRange = (SCAddressRange){range.location, range.length};
-            name = [[symbol name] UTF8String];
+            name = CSSymbolGetName(symbol);
         }
     }
 
