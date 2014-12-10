@@ -154,6 +154,8 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
 @implementation SCBinaryInfo {
     CSSymbolicatorRef symbolicator_;
     CSSymbolOwnerRef owner_;
+
+    BOOL hasExtractedMethods_;
 }
 
 @synthesize address = address_;
@@ -234,30 +236,34 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
 //       symbol. Therefore, this method must not rely on CoreSymbolication.
 - (NSArray *)methods {
     if (methods_ == nil) {
-        cpu_type_t cputype = CPU_TYPE_ANY;
-        cpu_subtype_t cpusubtype = CPU_SUBTYPE_MULTIPLE;
+        if (!hasExtractedMethods_) {
+            hasExtractedMethods_ = YES;
 
-        NSString *requiredArchitecture = [self architecture];
-        if ([requiredArchitecture isEqualToString:@"arm64"]) {
-            cputype = CPU_TYPE_ARM64;
-            cpusubtype = CPU_SUBTYPE_ARM64_ALL;
-        } else if (
-                [requiredArchitecture isEqualToString:@"armv7s"] ||
-                [requiredArchitecture isEqualToString:@"armv7k"] ||
-                [requiredArchitecture isEqualToString:@"armv7f"]) {
-            cputype = CPU_TYPE_ARM;
-            cpusubtype = CPU_SUBTYPE_ARM_V7S;
-        } else if ([requiredArchitecture isEqualToString:@"armv7"]) {
-            cputype = CPU_TYPE_ARM;
-            cpusubtype = CPU_SUBTYPE_ARM_V7;
-        } else if ([requiredArchitecture isEqualToString:@"armv6"]) {
-            cputype = CPU_TYPE_ARM;
-            cpusubtype = CPU_SUBTYPE_ARM_V6;
-        } else if ([requiredArchitecture isEqualToString:@"arm"]) {
-            cputype = CPU_TYPE_ARM;
-            cpusubtype = CPU_SUBTYPE_ARM_ALL;
+            cpu_type_t cputype = CPU_TYPE_ANY;
+            cpu_subtype_t cpusubtype = CPU_SUBTYPE_MULTIPLE;
+
+            NSString *requiredArchitecture = [self architecture];
+            if ([requiredArchitecture isEqualToString:@"arm64"]) {
+                cputype = CPU_TYPE_ARM64;
+                cpusubtype = CPU_SUBTYPE_ARM64_ALL;
+            } else if (
+                    [requiredArchitecture isEqualToString:@"armv7s"] ||
+                    [requiredArchitecture isEqualToString:@"armv7k"] ||
+                    [requiredArchitecture isEqualToString:@"armv7f"]) {
+                cputype = CPU_TYPE_ARM;
+                cpusubtype = CPU_SUBTYPE_ARM_V7S;
+            } else if ([requiredArchitecture isEqualToString:@"armv7"]) {
+                cputype = CPU_TYPE_ARM;
+                cpusubtype = CPU_SUBTYPE_ARM_V7;
+            } else if ([requiredArchitecture isEqualToString:@"armv6"]) {
+                cputype = CPU_TYPE_ARM;
+                cpusubtype = CPU_SUBTYPE_ARM_V6;
+            } else if ([requiredArchitecture isEqualToString:@"arm"]) {
+                cputype = CPU_TYPE_ARM;
+                cpusubtype = CPU_SUBTYPE_ARM_ALL;
+            }
+            methods_ = [methodsForBinaryFile([[self path] UTF8String], cputype, cpusubtype) retain];
         }
-        methods_ = [methodsForBinaryFile([[self path] UTF8String], cputype, cpusubtype) retain];
     }
     return methods_;
 }
