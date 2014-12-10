@@ -229,7 +229,14 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
 }
 
 - (BOOL)isExecutable {
-    return ([[self header] fileType] == MH_EXECUTE);
+    BOOL isExecutable = NO;
+
+    CSSymbolOwnerRef owner = [self owner];
+    if (!CSIsNull(owner)) {
+        isExecutable = (BOOL)CSSymbolOwnerIsAOut(owner);
+    }
+
+    return isExecutable;
 }
 
 - (NSArray *)methods {
