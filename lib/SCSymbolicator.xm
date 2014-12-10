@@ -211,7 +211,13 @@ CFComparisonResult reverseCompareUnsignedLongLong(CFNumberRef a, CFNumberRef b) 
                 if ([name isEqualToString:@"<redacted>"]) {
                     NSString *sharedCachePath = [self sharedCachePath];
                     if (sharedCachePath != nil) {
-                        NSString *localName = nameForLocalSymbol(sharedCachePath, [binaryInfo sharedCacheOffset], [symbolInfo addressRange].location);
+                        // NOTE: In the past, the dylib offset was retrieved via
+                        //       -[VMUMachOHeader address]. For some unknown
+                        //       reason, the value retrieved using our own
+                        //       function always differs by 0x200000.
+                        // TODO: Determine the reason for this difference.
+                        uint64_t dylibOffset = offsetOfDylibInSharedCache([[self sharedCachePath] UTF8String], [[binaryInfo path] UTF8String]);
+                        NSString *localName = nameForLocalSymbol(sharedCachePath, dylibOffset, [symbolInfo addressRange].location);
                         if (localName != nil) {
                             name = localName;
                         } else {

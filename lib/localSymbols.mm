@@ -13,39 +13,83 @@
 #include <mach-o/nlist.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <launch-cache/dyld_cache_format.h>
 
-#import "Headers.h"
+uint64_t offsetOfDylibInSharedCache(const char *sharedCachePath, const char *filepath) {
+    uint64_t offset = 0;
 
-typedef struct _dyld_cache_header {
-    char     magic[16];
-    uint32_t mappingOffset;
-    uint32_t mappingCount;
-    uint32_t imagesOffset;
-    uint32_t imagesCount;
-    uint64_t dyldBaseAddress;
-    uint64_t codeSignatureOffset;
-    uint64_t codeSignatureSize;
-    uint64_t slideInfoOffset;
-    uint64_t slideInfoSize;
-    uint64_t localSymbolsOffset;
-    uint64_t localSymbolsSize;
-    //uint8_t  uuid[16];
-} dyld_cache_header;
+    int fd = open(sharedCachePath, O_RDONLY);
+    if (fd < 0) {
+        fprintf(stderr, "ERROR: Failed to open shared cache file: %s.\n", sharedCachePath);
+        return 0;
+    }
 
-typedef struct _dyld_cache_local_symbols_info {
-    uint32_t nlistOffset;
-    uint32_t nlistCount;
-    uint32_t stringsOffset;
-    uint32_t stringsSize;
-    uint32_t entriesOffset;
-    uint32_t entriesCount;
-} dyld_cache_local_symbols_info;
+    struct stat st;
+    if (fstat(fd, &st) < 0) {
+        fprintf(stderr, "ERROR: Failed to fstat() shared cache file: %s.\n", sharedCachePath);
+        close(fd);
+        return NO;
+    }
+    //size_t sharedCacheSize = st.st_size;
 
-typedef struct _dyld_cache_local_symbols_entry {
-    uint32_t dylibOffset;
-    uint32_t nlistStartIndex;
-    uint32_t nlistCount;
-} dyld_cache_local_symbols_entry;
+    size_t headerSize = sizeof(dyld_cache_header);
+    dyld_cache_header *header = reinterpret_cast<dyld_cache_header *>(malloc(headerSize));
+    if (read(fd, header, headerSize) < 0) {
+        fprintf(stderr, "ERROR: Failed to read the shared cache header.\n");
+        free(header);
+        close(fd);
+        return 0;
+    }
+    const uint32_t imagesOffset = header->imagesOffset;
+    const uint32_t imagesCount = header->imagesCount;
+    const uint64_t dyldBaseAddress = header->dyldBaseAddress;
+    fprintf(stderr, "base addr: %llx\n", dyldBaseAddress);
+    free(header);
+
+    // Adjust for page size.
+    // NOTE: mmap() may fail if offset is not page-aligned.
+    const int pagesize = getpagesize();
+    const uint32_t imagesPage = imagesOffset / pagesize;
+    const off_t imagesPageOffset = imagesPage * pagesize;
+    const size_t imagesLen = (imagesOffset - imagesPageOffset) + (imagesCount * sizeof(dyld_cache_image_info));
+
+    void *data = mmap(NULL, imagesLen, PROT_READ, MAP_PRIVATE, fd, imagesPageOffset);
+    if (data != MAP_FAILED) {
+        uint8_t *memory = reinterpret_cast<uint8_t *>(data);
+
+        dyld_cache_image_info *images = reinterpret_cast<dyld_cache_image_info *>(memory + imagesOffset - imagesPageOffset);
+        for (uint32_t i = 0; i < imagesCount; ++i) {
+            // NOTE: The maximum allowed path length is 1024 bytes.
+            //       (According to /usr/include/sys/syslimits.h)
+            const uint32_t pathFileOffset = images[i].pathFileOffset;
+            const uint32_t pathFilePage = pathFileOffset / pagesize;
+            const off_t pathFilePageOffset = pathFilePage * pagesize;
+            const size_t pathFileLen = (pathFileOffset - pathFilePageOffset) + 1024;
+            void *pathFile = mmap(NULL, pathFileLen, PROT_READ, MAP_PRIVATE, fd, pathFilePageOffset);
+            if (pathFile != MAP_FAILED) {
+                const char *path = reinterpret_cast<const char *>(reinterpret_cast<uint8_t *>(pathFile) + pathFileOffset - pathFilePageOffset);
+                if (strcmp(filepath, path) == 0) {
+                    fprintf(stderr, "Found path is %s\n", path);
+                    offset = (images[i].address - dyldBaseAddress);
+                    munmap(pathFile, pathFileLen);
+                    break;
+                } else {
+                    munmap(pathFile, pathFileLen);
+                }
+            } else {
+                fprintf(stderr, "ERROR: Failed to mmap image path portion of shared cache file: %s.\n", sharedCachePath);
+            }
+        }
+
+        munmap(data, imagesLen);
+    } else {
+        fprintf(stderr, "ERROR: Failed to mmap image infos portion of shared cache file: %s.\n", sharedCachePath);
+    }
+
+    close(fd);
+
+    return offset;
+}
 
 NSString *nameForLocalSymbol(NSString *sharedCachePath, uint64_t dylibOffset, uint64_t symbolAddress) {
     NSString *name = nil;
@@ -73,7 +117,7 @@ NSString *nameForLocalSymbol(NSString *sharedCachePath, uint64_t dylibOffset, ui
     }
     // NOTE: Local symbol offset/size fields did not exist in earlier firmware.
     // TODO: At what point were they introduced?
-    if (header->mappingOffset < sizeof(_dyld_cache_header)) return nil;
+    if (header->mappingOffset < sizeof(dyld_cache_header)) return nil;
     const BOOL is64Bit = (strstr(header->magic, "arm64") != NULL);
     const uint64_t localSymbolsOffset = header->localSymbolsOffset;
     const uint64_t localSymbolsSize = header->localSymbolsSize;

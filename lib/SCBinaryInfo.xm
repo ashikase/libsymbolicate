@@ -297,10 +297,6 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     return symbolAddresses_;
 }
 
-- (uint64_t)sharedCacheOffset {
-    return [[self header] address];
-}
-
 - (SCSymbolInfo *)sourceInfoForAddress:(uint64_t)address {
     SCSymbolInfo *symbolInfo = nil;
 

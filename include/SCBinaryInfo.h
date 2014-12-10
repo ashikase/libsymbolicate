@@ -25,7 +25,6 @@
 @property(nonatomic, readonly) int64_t slide;
 @property(nonatomic, readonly) NSArray *symbolAddresses;
 - (id)initWithPath:(NSString *)path address:(uint64_t)address architecture:(NSString *)architecture uuid:(NSString *)uuid;
-- (uint64_t)sharedCacheOffset;
 - (SCSymbolInfo *)sourceInfoForAddress:(uint64_t)address;
 - (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address;
 @end
