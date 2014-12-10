@@ -297,10 +297,6 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     return symbolAddresses_;
 }
 
-- (VMUSegmentLoadCommand *)segmentNamed:(NSString *)name {
-    return [[self header] segmentNamed:name];
-}
-
 - (uint64_t)sharedCacheOffset {
     return [[self header] address];
 }
