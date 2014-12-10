@@ -9,13 +9,11 @@
 
 #include "methods.h"
 
-#include <fcntl.h>
-#include <mach-o/fat.h>
 #include <mach-o/loader.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
 
 #import "SCMethodInfo.h"
+#import "binary.h"
 
 #define RO_META     (1 << 0)
 #define RW_FUTURE   (1 << 30)
@@ -333,6 +331,15 @@ process_class:
 NSArray *methodsForBinaryFile(const char *filepath, cpu_type_t cputype, cpu_subtype_t cpusubtype) {
     NSArray *methods = nil;
 
+    // Determine offset and size of the requested architecture in the file.
+    // NOTE: File may contain multiple architectures, or incorrect architecture.
+    off_t offset;
+    size_t size;
+    if (!offsetAndSizeOfBinaryInFile(filepath, cputype, cpusubtype, &offset, &size)) {
+        fprintf(stderr, "ERROR: Failed to determine offset and size of requested architecture in file: %s.\n", filepath);
+        return nil;
+    }
+
     // Open the file.
     int fd = open(filepath, O_RDONLY);
     if (fd < 0) {
@@ -340,130 +347,11 @@ NSArray *methodsForBinaryFile(const char *filepath, cpu_type_t cputype, cpu_subt
         return nil;
     }
 
-    // Determine the file type.
-    // NOTE: Both fat and mach-o file types (and all other such types,
-    //       presumably) start with a uint32_t sized "magic" type identifier.
-    uint32_t magic;
-    if (read(fd, &magic, sizeof(magic)) < 0) {
-        fprintf(stderr, "ERROR: Failed to read magic for file: %s.\n", filepath);
-        close(fd);
-        return nil;
-    }
-
-    // Determine offset and length of binary to map.
-    off_t offset = 0;
-    size_t len = 0;
-    if ((magic == FAT_MAGIC) || (magic == FAT_CIGAM)) {
-        BOOL isSwapped = (magic == FAT_CIGAM);
-
-        uint32_t nfat_arch;
-        if (read(fd, &nfat_arch, sizeof(nfat_arch)) < 0) {
-            fprintf(stderr, "ERROR: Failed to read number of binaries contained in fat file: %s.\n", filepath);
-            close(fd);
-            return nil;
-        }
-        if (isSwapped) {
-            nfat_arch = OSSwapInt32(nfat_arch);
-        }
-
-        size_t archsSize = nfat_arch * sizeof(fat_arch);
-        fat_arch *archs = reinterpret_cast<fat_arch *>(malloc(archsSize));
-        if (archs != NULL) {
-            if (read(fd, archs, archsSize) < 0) {
-                fprintf(stderr, "ERROR: Failed to read architecture structs contained in fat file: %s.\n", filepath);
-                free(archs);
-                close(fd);
-                return nil;
-            }
-
-            // Get offset and length of binary matching requested architecture.
-            for (uint32_t i = 0; i < nfat_arch; ++i) {
-                cpu_type_t type = archs[i].cputype;
-                cpu_subtype_t subtype = archs[i].cpusubtype;
-                if (isSwapped) {
-                    type = OSSwapInt32(type);
-                    subtype = OSSwapInt32(subtype);
-                }
-
-                if ((type == cputype) && (subtype == cpusubtype)) {
-                    // TODO: Do we need to take the "align" member into account?
-                    offset = archs[i].offset;
-                    len = archs[i].size;
-                    if (isSwapped) {
-                        offset = OSSwapInt32(offset);
-                        len = OSSwapInt32(len);
-                    }
-                    break;
-                }
-            }
-            free(archs);
-
-            if (len > 0) {
-                // Read magic of contained architecture.
-                // NOTE: We want to reposition the offset of the file descriptor
-                //       for reading cpu type information later on.
-                if (lseek(fd, offset, SEEK_SET) < 0) {
-                    fprintf(stderr, "ERROR: Failed to seek to offset of contained architecture in fat file: %s.\n", filepath);
-                    close(fd);
-                    return nil;
-                }
-
-                if (read(fd, &magic, sizeof(magic)) < 0) {
-                    fprintf(stderr, "ERROR: Failed to read magic of contained architecture in fat file: %s.\n", filepath);
-                    close(fd);
-                    return nil;
-                }
-            } else {
-                fprintf(stderr, "ERROR: Requested architecture \"%u %u\" not found in fat file: %s.\n", cputype, cpusubtype, filepath);
-                close(fd);
-                return nil;
-            }
-        }
-    }
-
-    // Confirm binary is Mach-O.
-    if ((magic == MH_MAGIC_64) || (magic == MH_CIGAM_64) || (magic == MH_MAGIC) || (magic == MH_CIGAM)) {
-        if (len == 0) {
-            // Set length to size of file.
-            struct stat st;
-            if (fstat(fd, &st) < 0) {
-                fprintf(stderr, "ERROR: Failed to fstat() file: %s.\n", filepath);
-                close(fd);
-                return nil;
-            }
-            len = st.st_size;;
-        }
-    } else {
-        fprintf(stderr, "ERROR: Unknown magic \"0x%x\"for binary in file: %s\n", magic, filepath);
-        close(fd);
-        return nil;
-    }
-
-    // Confirm binary matches the requested architecture.
-    // NOTE: The first six members of 32-bit and 64-bit mach header have the
-    //       same name and type.
-    cpu_type_t type;
-    cpu_subtype_t subtype;
-    BOOL isSwapped = ((magic == MH_CIGAM) || (magic == MH_CIGAM_64));
-    if ((read(fd, &type, sizeof(type)) < 0) ||
-        (read(fd, &subtype, sizeof(subtype)) < 0)) {
-        fprintf(stderr, "ERROR: Failed to read cpu type information of binary in file: %s.\n", filepath);
-        close(fd);
-        return nil;
-    }
-    if (isSwapped) {
-        type = OSSwapInt32(type);
-        subtype = OSSwapInt32(subtype);
-    }
-    if ((type != cputype) || (subtype != cpusubtype)) {
-        fprintf(stderr, "ERROR: Requested architecture \"%u %u\" not found in file: %s.\n", cputype, cpusubtype, filepath);
-        close(fd);
-        return nil;
-    }
-
-    void *data = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, offset);
+    // Map the binary.
+    void *data = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, offset);
     close(fd);
 
+    // Extract the methods.
     if (data != MAP_FAILED) {
         // Determine if requested architecture is 32-bit or 64-bit.
         uint8_t *memory = reinterpret_cast<uint8_t *>(data);
@@ -478,7 +366,7 @@ NSArray *methodsForBinaryFile(const char *filepath, cpu_type_t cputype, cpu_subt
             fprintf(stderr, "WARNING: Unable to extract methods or no methods exist in file: %s.\n", filepath);
         }
 
-        munmap(data, len);
+        munmap(data, size);
     } else {
         fprintf(stderr, "ERROR: Failed to mmap file: %s.\n", filepath);
     }

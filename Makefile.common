@@ -8,6 +8,7 @@ libsymbolicate_OBJC_FILES = \
     lib/SCMethodInfo.mm \
     lib/SCSymbolicator.mm \
     lib/SCSymbolInfo.mm \
+    lib/binary.mm \
     lib/demangle.mm \
     lib/localSymbols.mm \
     lib/methods.mm \
