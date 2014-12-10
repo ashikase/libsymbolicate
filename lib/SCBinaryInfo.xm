@@ -153,41 +153,6 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     return uuid;
 }
 
-static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
-    NSMutableArray *addresses = [NSMutableArray new];
-
-    uint64_t offset = linkCommandOffsetForHeader(header, LC_FUNCTION_STARTS);
-    if (offset != 0) {
-        id<VMUMemoryView> view = (id<VMUMemoryView>)[[header memory] view];
-        uint64_t viewoff = [view cursor];
-        @try {
-            [view setCursor:[header address] + offset + 8];
-            uint32_t dataoff = [view uint32];
-            [view setCursor:(viewoff + dataoff)];
-            uint64_t offset;
-            uint64_t symbolAddress = [[header segmentNamed:@"__TEXT"] vmaddr];
-
-            // FIXME: This is slow.
-            while ((offset = [view ULEB128])) {
-                symbolAddress += offset;
-                [addresses addObject:[NSNumber numberWithUnsignedLongLong:symbolAddress]];
-            }
-        } @catch (NSException *exception) {
-            fprintf(stderr, "WARNING: Exception '%s' generated when extracting symbol addresses for %s.\n",
-                    [[exception reason] UTF8String], [[header path] UTF8String]);
-        }
-    }
-
-    NSArray *sortedAddresses = [addresses sortedArrayUsingFunction:(NSInteger (*)(id, id, void *))CFNumberCompare context:NULL];
-    [addresses release];
-
-    NSMutableArray *reverseSortedAddresses = [NSMutableArray array];
-    for (NSNumber *number in [sortedAddresses reverseObjectEnumerator]) {
-        [reverseSortedAddresses addObject:number];
-    }
-    return reverseSortedAddresses;
-}
-
 @implementation SCBinaryInfo {
     BOOL headerIsUnavailable_;
 
