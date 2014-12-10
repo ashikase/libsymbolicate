@@ -230,6 +230,8 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     return isExecutable;
 }
 
+// NOTE: This method is used when CoreSymbolication fails to find a name for a
+//       symbol. Therefore, this method must not rely on CoreSymbolication.
 - (NSArray *)methods {
     if (methods_ == nil) {
         cpu_type_t cputype = CPU_TYPE_ANY;
