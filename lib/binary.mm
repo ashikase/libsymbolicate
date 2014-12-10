@@ -11,6 +11,7 @@
 
 #include <mach-o/fat.h>
 #include <mach-o/loader.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 
 BOOL offsetAndSizeOfBinaryInFile(const char *filepath, cpu_type_t cputype, cpu_subtype_t cpusubtype, off_t *offset, size_t *size) {
@@ -155,6 +156,61 @@ BOOL offsetAndSizeOfBinaryInFile(const char *filepath, cpu_type_t cputype, cpu_s
     }
 
     return YES;
+}
+
+BOOL isEncrypted(const char *filepath, cpu_type_t cputype, cpu_subtype_t cpusubtype) {
+    BOOL isEncrypted = NO;
+
+    // Determine offset and size of the requested architecture in the file.
+    // NOTE: File may contain multiple architectures, or incorrect architecture.
+    off_t offset;
+    size_t size;
+    if (!offsetAndSizeOfBinaryInFile(filepath, cputype, cpusubtype, &offset, &size)) {
+        fprintf(stderr, "ERROR: Failed to determine offset and size of requested architecture in file: %s.\n", filepath);
+        return nil;
+    }
+
+    // Open the file.
+    int fd = open(filepath, O_RDONLY);
+    if (fd < 0) {
+        fprintf(stderr, "ERROR: Failed to open file: %s.\n", filepath);
+        return nil;
+    }
+
+    // Map the binary.
+    void *data = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, offset);
+    close(fd);
+
+    // Determine encryption status.
+    if (data != MAP_FAILED) {
+        // Determine if requested architecture is 32-bit or 64-bit.
+        BOOL is32Bit = !(cputype & CPU_ARCH_ABI64);
+        size_t headerSize = (is32Bit ? sizeof(mach_header) : sizeof(mach_header_64));
+
+        // Search for encryption info load command.
+        uint8_t *memory = reinterpret_cast<uint8_t *>(data);
+        mach_header *header = reinterpret_cast<mach_header *>(memory);
+        uint32_t ncmds = header->ncmds;
+        load_command *cmd = reinterpret_cast<load_command *>(memory + headerSize);
+        for (uint32_t i = 0; i < ncmds; ++i) {
+            if ((cmd->cmd == LC_ENCRYPTION_INFO) || (cmd->cmd == LC_ENCRYPTION_INFO_64)) {
+                // NOTE: Both 32-bit and 64-bit encryption info structs are the
+                //       same, except for padding at the end.
+                encryption_info_command *enc = reinterpret_cast<encryption_info_command *>(cmd);
+                isEncrypted = (enc->cryptid != 0);
+                break;
+            }
+
+            // Prepare next command.
+            cmd = reinterpret_cast<load_command *>(reinterpret_cast<uint8_t *>(cmd) + cmd->cmdsize);
+        }
+
+        munmap(data, size);
+    } else {
+        fprintf(stderr, "ERROR: Failed to mmap file: %s.\n", filepath);
+    }
+
+    return isEncrypted;
 }
 
 /* vim: set ft=objcpp ff=unix sw=4 ts=4 tw=80 expandtab: */

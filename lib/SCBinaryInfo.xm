@@ -12,6 +12,7 @@
 #import "SCMethodInfo.h"
 #import "SCSymbolicator.h"
 #import "SCSymbolInfo.h"
+#import "binary.h"
 
 #include <mach-o/loader.h>
 #include <objc/runtime.h>
@@ -152,39 +153,6 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     return uuid;
 }
 
-static uint64_t linkCommandOffsetForHeader(VMUMachOHeader *header, uint64_t linkCommand) {
-    uint64_t cmdsize = 0;
-    Ivar ivar = class_getInstanceVariable(%c(VMULoadCommand), "_command");
-    for (VMULoadCommand *lc in [header loadCommands]) {
-        uint64_t cmd = (uint64_t)object_getIvar(lc, ivar);
-        if (cmd == linkCommand) {
-            return [header isMachO64] ?
-                sizeof(mach_header_64) + cmdsize :
-                sizeof(mach_header) + cmdsize;
-        }
-        cmdsize += [lc cmdSize];
-    }
-    return 0;
-}
-
-static BOOL isEncrypted(VMUMachOHeader *header) {
-    BOOL isEncrypted = NO;
-
-    uint64_t offset = linkCommandOffsetForHeader(header, LC_ENCRYPTION_INFO);
-    if (offset != 0) {
-        id<VMUMemoryView> view = (id<VMUMemoryView>)[[header memory] view];
-        @try {
-            [view setCursor:[header address] + offset + 16];
-            isEncrypted = ([view uint32] > 0);
-        } @catch (NSException *exception) {
-            fprintf(stderr, "WARNING: Exception '%s' generated when determining encryption status for %s.\n",
-                    [[exception reason] UTF8String], [[header path] UTF8String]);
-        }
-    }
-
-    return isEncrypted;
-}
-
 static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
     NSMutableArray *addresses = [NSMutableArray new];
 
@@ -269,7 +237,30 @@ static NSArray *symbolAddressesForImageWithHeader(VMUMachOHeader *header) {
 }
 
 - (BOOL)isEncrypted {
-    return isEncrypted([self header]);
+    cpu_type_t cputype = CPU_TYPE_ANY;
+    cpu_subtype_t cpusubtype = CPU_SUBTYPE_MULTIPLE;
+
+    NSString *requiredArchitecture = [self architecture];
+    if ([requiredArchitecture isEqualToString:@"arm64"]) {
+        cputype = CPU_TYPE_ARM64;
+        cpusubtype = CPU_SUBTYPE_ARM64_ALL;
+    } else if (
+            [requiredArchitecture isEqualToString:@"armv7s"] ||
+            [requiredArchitecture isEqualToString:@"armv7k"] ||
+            [requiredArchitecture isEqualToString:@"armv7f"]) {
+        cputype = CPU_TYPE_ARM;
+        cpusubtype = CPU_SUBTYPE_ARM_V7S;
+    } else if ([requiredArchitecture isEqualToString:@"armv7"]) {
+        cputype = CPU_TYPE_ARM;
+        cpusubtype = CPU_SUBTYPE_ARM_V7;
+    } else if ([requiredArchitecture isEqualToString:@"armv6"]) {
+        cputype = CPU_TYPE_ARM;
+        cpusubtype = CPU_SUBTYPE_ARM_V6;
+    } else if ([requiredArchitecture isEqualToString:@"arm"]) {
+        cputype = CPU_TYPE_ARM;
+        cpusubtype = CPU_SUBTYPE_ARM_ALL;
+    }
+    return isEncrypted([[self path] UTF8String], cputype, cpusubtype);
 }
 
 - (BOOL)isExecutable {

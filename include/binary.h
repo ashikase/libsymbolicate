@@ -17,6 +17,7 @@ extern "C" {
 #endif
 
 BOOL offsetAndSizeOfBinaryInFile(const char *filepath, cpu_type_t cputype, cpu_subtype_t cpusubtype, off_t *offset, size_t *size);
+BOOL isEncrypted(const char *filepath, cpu_type_t cputype, cpu_subtype_t cpusubtype);
 
 #ifdef __cplusplus
 }
