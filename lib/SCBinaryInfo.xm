@@ -156,6 +156,7 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     CSSymbolOwnerRef owner_;
 
     BOOL hasExtractedMethods_;
+    BOOL hasExtractedOwner_;
 }
 
 @synthesize address = address_;
@@ -390,16 +391,22 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
 
 - (CSSymbolOwnerRef)owner {
     if (CSIsNull(owner_)) {
-        CSSymbolicatorRef symbolicator = [self symbolicator];
-        if (!CSIsNull(symbolicator)) {
-            // NOTE: Must ignore "<>" characters in UUID string.
-            // FIXME: Do not store the UUID with these characters included.
-            CFUUIDRef uuid = CFUUIDCreateFromUnformattedCString(&([[self uuid] UTF8String][1]));
-            CSSymbolOwnerRef owner = CSSymbolicatorGetSymbolOwnerWithUUIDAtTime(symbolicator, uuid, kCSNow);
-            if (!CSIsNull(owner)) {
-                owner_ = owner;
+        if (!hasExtractedOwner_) {
+            hasExtractedOwner_ = YES;
+
+            CSSymbolicatorRef symbolicator = [self symbolicator];
+            if (!CSIsNull(symbolicator)) {
+                // NOTE: Must ignore "<>" characters in UUID string.
+                // FIXME: Do not store the UUID with these characters included.
+                CFUUIDRef uuid = CFUUIDCreateFromUnformattedCString(&([[self uuid] UTF8String][1]));
+                CSSymbolOwnerRef owner = CSSymbolicatorGetSymbolOwnerWithUUIDAtTime(symbolicator, uuid, kCSNow);
+                if (!CSIsNull(owner)) {
+                    owner_ = owner;
+                } else {
+                    fprintf(stderr, "WARNING: Device does not contain binary with matching UUID for file: %s\n", [[self path] UTF8String]);
+                }
+                CFRelease(uuid);
             }
-            CFRelease(uuid);
         }
     }
     return owner_;
