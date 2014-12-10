@@ -170,6 +170,8 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
 @dynamic executable;
 @dynamic slide;
 
+#pragma mark - Creation & Destruction
+
 - (id)initWithPath:(NSString *)path address:(uint64_t)address architecture:(NSString *)architecture uuid:(NSString *)uuid {
     self = [super init];
     if (self != nil) {
@@ -192,6 +194,18 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     [uuid_ release];
     [symbolAddresses_ release];
     [super dealloc];
+}
+
+#pragma mark - Properties
+
+// NOTE: This is the virtual address of the __TEXT segment.
+- (uint64_t)baseAddress {
+    uint64_t baseAddress = 0;
+    CSSymbolOwnerRef owner = [self owner];
+    if (!CSIsNull(owner)) {
+        baseAddress = CSSymbolOwnerGetBaseAddress(owner);
+    }
+    return baseAddress;
 }
 
 - (BOOL)isEncrypted {
@@ -302,15 +316,7 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     return symbolAddresses_;
 }
 
-// NOTE: This is the virtual address of the __TEXT segment.
-- (uint64_t)baseAddress {
-    uint64_t baseAddress = 0;
-    CSSymbolOwnerRef owner = [self owner];
-    if (!CSIsNull(owner)) {
-        baseAddress = CSSymbolOwnerGetBaseAddress(owner);
-    }
-    return baseAddress;
-}
+#pragma mark - Public Methods
 
 - (SCSymbolInfo *)sourceInfoForAddress:(uint64_t)address {
     SCSymbolInfo *symbolInfo = nil;
@@ -367,7 +373,7 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     return symbolInfo;
 }
 
-#pragma mark - Firmware_GTE_80 (CoreSymbolication.framework)
+#pragma mark - Private Methods
 
 - (CSSymbolicatorRef)symbolicator {
     if (CSIsNull(symbolicator_)) {
