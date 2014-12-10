@@ -270,8 +270,7 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
 }
 
 - (int64_t)slide {
-    uint64_t textStart = [[[self header] segmentNamed:@"__TEXT"] vmaddr];
-    return (textStart - [self address]);
+    return ([self baseAddress] - [self address]);
 }
 
 // NOTE: The symbol addresses array is sorted greatest to least so that it can
@@ -302,6 +301,16 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
         symbolAddresses_ = reverseSortedAddresses;
     }
     return symbolAddresses_;
+}
+
+// NOTE: This is the virtual address of the __TEXT segment.
+- (uint64_t)baseAddress {
+    uint64_t baseAddress = 0;
+    CSSymbolOwnerRef owner = [self owner];
+    if (!CSIsNull(owner)) {
+        baseAddress = CSSymbolOwnerGetBaseAddress(owner);
+    }
+    return baseAddress;
 }
 
 - (SCSymbolInfo *)sourceInfoForAddress:(uint64_t)address {
