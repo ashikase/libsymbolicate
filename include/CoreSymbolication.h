@@ -7,7 +7,7 @@
  * License: LGPL v3 (See LICENSE file for details)
  */
 
-// NOTE: The information in this file is based off of:
+// NOTE: The information in this file is based off of (and modified from):
 //       https://github.com/mountainstorm/CoreSymbolication.git
 
 #ifndef SYMBOLICATE_CORESYMBOLICATION_H_
@@ -18,12 +18,9 @@ typedef struct _CSTypeRef {
     void *csCppObj;
 } CSTypeRef;
 
-//typedef CSTypeRef CSRegionRef;
 typedef CSTypeRef CSSourceInfoRef;
 typedef CSTypeRef CSSymbolicatorRef;
 typedef CSTypeRef CSSymbolOwnerRef;
-//typedef CSTypeRef CSSectionRef;
-//typedef CSTypeRef CSSegmentRef;
 typedef CSTypeRef CSSymbolRef;
 
 typedef struct _CSRange {
@@ -31,8 +28,6 @@ typedef struct _CSRange {
    unsigned long long length;
 } CSRange;
 
-//typedef int (^CSRegionIterator)(CSRegionRef region);
-//typedef int (^CSSegmentIterator)(CSSegmentRef segment);
 typedef int (^CSSymbolIterator)(CSSymbolRef symbol);
 
 typedef struct _CSArchitecture {
@@ -45,11 +40,7 @@ typedef struct _CSArchitecture {
 extern "C" {
     // Allocation-related functions.
     Boolean CSIsNull(CSTypeRef cs);
-    CSTypeRef CSRetain(CSTypeRef cs);
     void CSRelease(CSTypeRef cs);
-
-    // CSArchitecture
-    CSArchitecture CSArchitectureGetArchitectureForName(const char *arch);
 
     // CSSourceInfo
     int CSSourceInfoGetLineNumber(CSSourceInfoRef info);
@@ -71,18 +62,6 @@ extern "C" {
     CSRange CSSymbolGetRange(CSSymbolRef sym);
     Boolean CSSymbolIsObjcMethod(CSSymbolRef sym);
     Boolean CSSymbolIsFunction(CSSymbolRef sym);
-
-    // Currently unused.
-#if 0
-    CSRegionRef CSSymbolOwnerGetRegionWithName(CSSymbolOwnerRef owner, const char *name);
-    const char * CSRegionGetName(CSRegionRef region);
-    CSRange CSRegionGetRange(CSRegionRef region);
-
-    unsigned int CSSymbolOwnerIsDyldSharedCache(CSSymbolOwnerRef owner);
-
-    int CSSymbolOwnerForeachSegment(CSSymbolOwnerRef owner, CSSegmentIterator block);
-    int CSSymbolOwnerForeachRegionWithName(CSSymbolOwnerRef owner, const char *name, CSRegionIterator block);
-#endif
 }
 
 #endif // SYMBOLICATE_CORESYMBOLICATION_H_
