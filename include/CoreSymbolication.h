@@ -61,8 +61,10 @@ extern "C" {
 
     // CSSymbolOwner
     long CSSymbolOwnerForeachSymbol(CSSymbolOwnerRef owner, CSSymbolIterator block);
+    uint64_t CSSymbolOwnerGetBaseAddress(CSSymbolOwnerRef owner);
     CSSourceInfoRef CSSymbolOwnerGetSourceInfoWithAddress(CSSymbolOwnerRef owner, uint64_t addr);
     CSSymbolRef CSSymbolOwnerGetSymbolWithAddress(CSSymbolOwnerRef owner, uint64_t addr);
+    int CSSymbolOwnerIsAOut(CSSymbolOwnerRef owner);
 
     // CSSymbol
     const char * CSSymbolGetName(CSSymbolRef sym);
@@ -76,7 +78,6 @@ extern "C" {
     const char * CSRegionGetName(CSRegionRef region);
     CSRange CSRegionGetRange(CSRegionRef region);
 
-    int64_t CSSymbolOwnerGetBaseAddress(CSSymbolOwnerRef owner);
     unsigned int CSSymbolOwnerIsDyldSharedCache(CSSymbolOwnerRef owner);
 
     int CSSymbolOwnerForeachSegment(CSSymbolOwnerRef owner, CSSegmentIterator block);

@@ -67,8 +67,6 @@
 #define CPU_SUBTYPE_ARM64_V8 1
 #endif
 
-static BOOL shouldUseCoreSymbolication = NO;
-
 // NOTE: CoreSymbolication provides a similar function, but it is not available
 //       in earlier versions of iOS.
 // TODO: Determine from which version the function is available.
@@ -154,13 +152,8 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
 }
 
 @implementation SCBinaryInfo {
-    BOOL headerIsUnavailable_;
-
-    VMUMachOHeader *header_;
-    VMUSymbolOwner *owner_;
-
-    CSSymbolicatorRef symbolicatorRef_;
-    CSSymbolOwnerRef ownerRef_;
+    CSSymbolicatorRef symbolicator_;
+    CSSymbolOwnerRef owner_;
 }
 
 @synthesize address = address_;
@@ -187,14 +180,12 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
 }
 
 - (void)dealloc {
-    if (!CSIsNull(symbolicatorRef_)) {
-        CSRelease(symbolicatorRef_);
+    if (!CSIsNull(symbolicator_)) {
+        CSRelease(symbolicator_);
     }
 
     [architecture_ release];
-    [header_ release];
     [methods_ release];
-    [owner_ release];
     [path_ release];
     [uuid_ release];
     [symbolAddresses_ release];
@@ -279,7 +270,7 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     if (symbolAddresses_ == nil) {
         NSMutableArray *addresses = [[NSMutableArray alloc] init];
 
-        CSSymbolOwnerRef owner = [self ownerRef];
+        CSSymbolOwnerRef owner = [self owner];
         if (!CSIsNull(owner)) {
             CSSymbolOwnerForeachSymbol(owner, ^(CSSymbolRef symbol) {
                 if (CSSymbolIsFunction(symbol)) {
@@ -319,7 +310,7 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     const char *path = NULL;
     unsigned lineNumber = 0;
 
-    CSSymbolOwnerRef owner = [self ownerRef];
+    CSSymbolOwnerRef owner = [self owner];
     if (!CSIsNull(owner)) {
         CSSourceInfoRef sourceInfo = CSSymbolOwnerGetSourceInfoWithAddress(owner, address);
         if (!CSIsNull(sourceInfo)) {
@@ -346,7 +337,7 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     const char *name = NULL;
     SCAddressRange addressRange;
 
-    CSSymbolOwnerRef owner = [self ownerRef];
+    CSSymbolOwnerRef owner = [self owner];
     if (!CSIsNull(owner)) {
         CSSymbolRef symbol = CSSymbolOwnerGetSymbolWithAddress(owner, address);
         if (!CSIsNull(symbol)) {
@@ -368,133 +359,38 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     return symbolInfo;
 }
 
-#pragma mark - Firmware_LT_80 (Symbolication.framework)
-
-- (VMUMachOHeader *)header {
-    if (header_ == nil) {
-        if (!headerIsUnavailable_) {
-            // Get Mach-O header for the image
-            VMUMachOHeader *header = nil;
-            NSString *path = [self path];
-            VMUMemory_File *mappedCache = [[SCSymbolicator sharedInstance] mappedCache];
-            if (mappedCache != nil) {
-                uint64_t address = [mappedCache sharedCacheHeaderOffsetForPath:path];
-                NSString *name = [path lastPathComponent];
-                id timestamp = [mappedCache lastModifiedTimestamp];
-                header = [%c(VMUHeader) headerWithMemory:mappedCache address:address name:name path:path timestamp:timestamp];
-                if (header != nil) {
-                    fromSharedCache_ = YES;
-                }
-            }
-            if (header == nil) {
-                header = [%c(VMUMemory_File) headerWithPath:path];
-            }
-            if ((header != nil) && ![header isKindOfClass:%c(VMUMachOHeader)]) {
-                // Extract required architecture from archive.
-                // TODO: Confirm if arm7f and arm7k should use own cpu subtype.
-                VMUArchitecture *architecture = nil;
-                NSString *requiredArchitecture = [self architecture];
-                if ([requiredArchitecture isEqualToString:@"arm64"]) {
-                    architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM64 cpuSubtype:CPU_SUBTYPE_ARM64_ALL];
-                } else if (
-                        [requiredArchitecture isEqualToString:@"armv7s"] ||
-                        [requiredArchitecture isEqualToString:@"armv7k"] ||
-                        [requiredArchitecture isEqualToString:@"armv7f"]) {
-                    architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V7S];
-                } else if ([requiredArchitecture isEqualToString:@"armv7"]) {
-                    architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V7];
-                } else if ([requiredArchitecture isEqualToString:@"armv6"]) {
-                    architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_V6];
-                } else if ([requiredArchitecture isEqualToString:@"arm"]) {
-                    architecture = [[VMUArchitecture alloc] initWithCpuType:CPU_TYPE_ARM cpuSubtype:CPU_SUBTYPE_ARM_ALL];
-                }
-                if (architecture != nil) {
-                    header = [[%c(VMUHeader) extractMachOHeadersFromHeader:header matchingArchitecture:architecture considerArchives:NO] lastObject];
-                    [architecture release];
-                } else {
-                    header = nil;
-                }
-            }
-            if (header != nil) {
-                // Check UUID signature of binary.
-                NSString *uuid = [[[header uuid] description] stringByReplacingOccurrencesOfString:@" " withString:@""];
-                if ([uuid isEqualToString:[self uuid]]) {
-                    header_ = [header retain];
-                } else {
-                    fprintf(stderr, "INFO: Symbolicating device does not have required version of binary image: %s\n", [path UTF8String]);
-                    headerIsUnavailable_ = YES;
-                }
-            } else {
-                fprintf(stderr, "INFO: Symbolicating device does not have required binary image: %s\n", [path UTF8String]);
-                headerIsUnavailable_ = YES;
-            }
-        }
-    }
-    return header_;
-}
-
-- (VMUSymbolOwner *)owner {
-    if (owner_ == nil) {
-        if (!headerIsUnavailable_) {
-            // NOTE: The following method is quite slow.
-            owner_ = [[%c(VMUSymbolExtractor) extractSymbolOwnerFromHeader:[self header]] retain];
-        }
-    }
-    return owner_;
-}
-
 #pragma mark - Firmware_GTE_80 (CoreSymbolication.framework)
 
-- (CSSymbolicatorRef)symbolicatorRef {
-    if (CSIsNull(symbolicatorRef_)) {
+- (CSSymbolicatorRef)symbolicator {
+    if (CSIsNull(symbolicator_)) {
         CSArchitecture arch = architectureForName([[self architecture] UTF8String]);
         if (arch.cpu_type != 0) {
             CSSymbolicatorRef symbolicator = CSSymbolicatorCreateWithPathAndArchitecture([[self path] UTF8String], arch);
             if (!CSIsNull(symbolicator)) {
-                symbolicatorRef_ = symbolicator;
+                symbolicator_ = symbolicator;
             }
         }
     }
-    return symbolicatorRef_;
+    return symbolicator_;
 }
 
-- (CSSymbolOwnerRef)ownerRef {
-    if (CSIsNull(ownerRef_)) {
-        CSSymbolicatorRef symbolicator = [self symbolicatorRef];
+- (CSSymbolOwnerRef)owner {
+    if (CSIsNull(owner_)) {
+        CSSymbolicatorRef symbolicator = [self symbolicator];
         if (!CSIsNull(symbolicator)) {
             // NOTE: Must ignore "<>" characters in UUID string.
             // FIXME: Do not store the UUID with these characters included.
             CFUUIDRef uuid = CFUUIDCreateFromUnformattedCString(&([[self uuid] UTF8String][1]));
             CSSymbolOwnerRef owner = CSSymbolicatorGetSymbolOwnerWithUUIDAtTime(symbolicator, uuid, kCSNow);
             if (!CSIsNull(owner)) {
-                ownerRef_ = owner;
+                owner_ = owner;
             }
             CFRelease(uuid);
         }
     }
-    return ownerRef_;
+    return owner_;
 }
 
 @end
-
-#if TARGET_OS_IPHONE
-    #ifndef kCFCoreFoundationVersionNumber_iOS_8_0
-    #define kCFCoreFoundationVersionNumber_iOS_8_0 1140.10
-    #endif
-#else
-    #ifndef kCFCoreFoundationVersionNumber10_10
-    #define kCFCoreFoundationVersionNumber10_10 1151.16
-    #endif
-#endif
-
-%ctor {
-#if TARGET_OS_IPHONE
-        if (kCFCoreFoundationVersionNumber >= kCFCoreFoundationVersionNumber_iOS_8_0) {
-#else
-        if (kCFCoreFoundationVersionNumber >= kCFCoreFoundationVersionNumber10_10) {
-#endif
-            shouldUseCoreSymbolication = YES;
-        }
-}
 
 /* vim: set ft=objcpp ff=unix sw=4 ts=4 tw=80 expandtab: */

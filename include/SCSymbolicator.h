@@ -15,7 +15,6 @@
 @property(nonatomic, copy) NSString *architecture;
 @property(nonatomic, copy) NSDictionary *symbolMaps;
 @property(nonatomic, copy) NSString *systemRoot;
-@property(nonatomic, readonly) VMUMemory_File *mappedCache;
 @property(nonatomic, readonly) NSString *sharedCachePath;
 + (SCSymbolicator *)sharedInstance;
 - (SCSymbolInfo *)symbolInfoForAddress:(uint64_t)address inBinary:(SCBinaryInfo *)binaryInfo;
