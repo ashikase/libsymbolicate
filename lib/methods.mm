@@ -336,14 +336,14 @@ NSArray *methodsForBinaryFile(const char *filepath, cpu_type_t cputype, cpu_subt
     off_t offset;
     size_t size;
     if (!offsetAndSizeOfBinaryInFile(filepath, cputype, cpusubtype, &offset, &size)) {
-        fprintf(stderr, "ERROR: Failed to determine offset and size of requested architecture in file: %s.\n", filepath);
+        fprintf(stderr, "ERROR: Failed to determine offset and size of requested architecture in file: %s\n", filepath);
         return nil;
     }
 
     // Open the file.
     int fd = open(filepath, O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "ERROR: Failed to open file: %s.\n", filepath);
+        fprintf(stderr, "ERROR: Failed to open file: %s\n", filepath);
         return nil;
     }
 
@@ -363,12 +363,12 @@ NSArray *methodsForBinaryFile(const char *filepath, cpu_type_t cputype, cpu_subt
         }
 
         if ([methods count] == 0) {
-            fprintf(stderr, "WARNING: Unable to extract methods or no methods exist in file: %s.\n", filepath);
+            fprintf(stderr, "WARNING: Unable to extract methods or no methods exist in file: %s\n", filepath);
         }
 
         munmap(data, size);
     } else {
-        fprintf(stderr, "ERROR: Failed to mmap file: %s.\n", filepath);
+        fprintf(stderr, "ERROR: Failed to mmap file: %s\n", filepath);
     }
 
     return [methods sortedArrayUsingFunction:(NSInteger (*)(id, id, void *))reversedCompareMethodInfos context:NULL];

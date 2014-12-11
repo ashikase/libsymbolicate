@@ -21,7 +21,7 @@ BOOL offsetAndSizeOfBinaryInFile(const char *filepath, cpu_type_t cputype, cpu_s
     // Open the file.
     int fd = open(filepath, O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "ERROR: Failed to open file: %s.\n", filepath);
+        fprintf(stderr, "ERROR: Failed to open file: %s\n", filepath);
         return NO;
     }
 
@@ -30,7 +30,7 @@ BOOL offsetAndSizeOfBinaryInFile(const char *filepath, cpu_type_t cputype, cpu_s
     //       presumably) start with a uint32_t sized "magic" type identifier.
     uint32_t magic;
     if (read(fd, &magic, sizeof(magic)) < 0) {
-        fprintf(stderr, "ERROR: Failed to read magic for file: %s.\n", filepath);
+        fprintf(stderr, "ERROR: Failed to read magic for file: %s\n", filepath);
         close(fd);
         return NO;
     }
@@ -41,7 +41,7 @@ BOOL offsetAndSizeOfBinaryInFile(const char *filepath, cpu_type_t cputype, cpu_s
 
         uint32_t nfat_arch;
         if (read(fd, &nfat_arch, sizeof(nfat_arch)) < 0) {
-            fprintf(stderr, "ERROR: Failed to read number of binaries contained in fat file: %s.\n", filepath);
+            fprintf(stderr, "ERROR: Failed to read number of binaries contained in fat file: %s\n", filepath);
             close(fd);
             return NO;
         }
@@ -53,7 +53,7 @@ BOOL offsetAndSizeOfBinaryInFile(const char *filepath, cpu_type_t cputype, cpu_s
         fat_arch *archs = reinterpret_cast<fat_arch *>(malloc(archsSize));
         if (archs != NULL) {
             if (read(fd, archs, archsSize) < 0) {
-                fprintf(stderr, "ERROR: Failed to read architecture structs contained in fat file: %s.\n", filepath);
+                fprintf(stderr, "ERROR: Failed to read architecture structs contained in fat file: %s\n", filepath);
                 free(archs);
                 close(fd);
                 return NO;
@@ -86,18 +86,18 @@ BOOL offsetAndSizeOfBinaryInFile(const char *filepath, cpu_type_t cputype, cpu_s
                 // NOTE: We want to reposition the offset of the file descriptor
                 //       for reading cpu type information later on.
                 if (lseek(fd, offsetOfBinary, SEEK_SET) < 0) {
-                    fprintf(stderr, "ERROR: Failed to seek to offset of contained architecture in fat file: %s.\n", filepath);
+                    fprintf(stderr, "ERROR: Failed to seek to offset of contained architecture in fat file: %s\n", filepath);
                     close(fd);
                     return NO;
                 }
 
                 if (read(fd, &magic, sizeof(magic)) < 0) {
-                    fprintf(stderr, "ERROR: Failed to read magic of contained architecture in fat file: %s.\n", filepath);
+                    fprintf(stderr, "ERROR: Failed to read magic of contained architecture in fat file: %s\n", filepath);
                     close(fd);
                     return NO;
                 }
             } else {
-                fprintf(stderr, "ERROR: Requested architecture \"%u %u\" not found in fat file: %s.\n", cputype, cpusubtype, filepath);
+                fprintf(stderr, "ERROR: Requested architecture \"%u %u\" not found in fat file: %s\n", cputype, cpusubtype, filepath);
                 close(fd);
                 return NO;
             }
@@ -110,7 +110,7 @@ BOOL offsetAndSizeOfBinaryInFile(const char *filepath, cpu_type_t cputype, cpu_s
             // Set size to size of file.
             struct stat st;
             if (fstat(fd, &st) < 0) {
-                fprintf(stderr, "ERROR: Failed to fstat() file: %s.\n", filepath);
+                fprintf(stderr, "ERROR: Failed to fstat() file: %s\n", filepath);
                 close(fd);
                 return NO;
             }
@@ -130,7 +130,7 @@ BOOL offsetAndSizeOfBinaryInFile(const char *filepath, cpu_type_t cputype, cpu_s
     BOOL isSwapped = ((magic == MH_CIGAM) || (magic == MH_CIGAM_64));
     if ((read(fd, &type, sizeof(type)) < 0) ||
         (read(fd, &subtype, sizeof(subtype)) < 0)) {
-        fprintf(stderr, "ERROR: Failed to read cpu type information of binary in file: %s.\n", filepath);
+        fprintf(stderr, "ERROR: Failed to read cpu type information of binary in file: %s\n", filepath);
         close(fd);
         return NO;
     }
@@ -139,7 +139,7 @@ BOOL offsetAndSizeOfBinaryInFile(const char *filepath, cpu_type_t cputype, cpu_s
         subtype = OSSwapInt32(subtype);
     }
     if ((type != cputype) || (subtype != cpusubtype)) {
-        fprintf(stderr, "ERROR: Requested architecture \"%u %u\" not found in file: %s.\n", cputype, cpusubtype, filepath);
+        fprintf(stderr, "ERROR: Requested architecture \"%u %u\" not found in file: %s\n", cputype, cpusubtype, filepath);
         close(fd);
         return NO;
     }
@@ -166,14 +166,14 @@ BOOL isEncrypted(const char *filepath, cpu_type_t cputype, cpu_subtype_t cpusubt
     off_t offset;
     size_t size;
     if (!offsetAndSizeOfBinaryInFile(filepath, cputype, cpusubtype, &offset, &size)) {
-        fprintf(stderr, "ERROR: Failed to determine offset and size of requested architecture in file: %s.\n", filepath);
+        fprintf(stderr, "ERROR: Failed to determine offset and size of requested architecture in file: %s\n", filepath);
         return nil;
     }
 
     // Open the file.
     int fd = open(filepath, O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "ERROR: Failed to open file: %s.\n", filepath);
+        fprintf(stderr, "ERROR: Failed to open file: %s\n", filepath);
         return nil;
     }
 
@@ -207,7 +207,7 @@ BOOL isEncrypted(const char *filepath, cpu_type_t cputype, cpu_subtype_t cpusubt
 
         munmap(data, size);
     } else {
-        fprintf(stderr, "ERROR: Failed to mmap file: %s.\n", filepath);
+        fprintf(stderr, "ERROR: Failed to mmap file: %s\n", filepath);
     }
 
     return isEncrypted;

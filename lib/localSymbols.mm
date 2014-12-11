@@ -20,13 +20,13 @@ uint64_t offsetOfDylibInSharedCache(const char *sharedCachePath, const char *fil
 
     int fd = open(sharedCachePath, O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "ERROR: Failed to open shared cache file: %s.\n", sharedCachePath);
+        fprintf(stderr, "ERROR: Failed to open shared cache file: %s\n", sharedCachePath);
         return 0;
     }
 
     struct stat st;
     if (fstat(fd, &st) < 0) {
-        fprintf(stderr, "ERROR: Failed to fstat() shared cache file: %s.\n", sharedCachePath);
+        fprintf(stderr, "ERROR: Failed to fstat() shared cache file: %s\n", sharedCachePath);
         close(fd);
         return NO;
     }
@@ -35,7 +35,7 @@ uint64_t offsetOfDylibInSharedCache(const char *sharedCachePath, const char *fil
     size_t headerSize = sizeof(dyld_cache_header);
     dyld_cache_header *header = reinterpret_cast<dyld_cache_header *>(malloc(headerSize));
     if (read(fd, header, headerSize) < 0) {
-        fprintf(stderr, "ERROR: Failed to read the shared cache header.\n");
+        fprintf(stderr, "ERROR: Failed to read the shared cache header\n");
         free(header);
         close(fd);
         return 0;
@@ -77,13 +77,13 @@ uint64_t offsetOfDylibInSharedCache(const char *sharedCachePath, const char *fil
                     munmap(pathFile, pathFileLen);
                 }
             } else {
-                fprintf(stderr, "ERROR: Failed to mmap image path portion of shared cache file: %s.\n", sharedCachePath);
+                fprintf(stderr, "ERROR: Failed to mmap image path portion of shared cache file: %s\n", sharedCachePath);
             }
         }
 
         munmap(data, imagesLen);
     } else {
-        fprintf(stderr, "ERROR: Failed to mmap image infos portion of shared cache file: %s.\n", sharedCachePath);
+        fprintf(stderr, "ERROR: Failed to mmap image infos portion of shared cache file: %s\n", sharedCachePath);
     }
 
     close(fd);
