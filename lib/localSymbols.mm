@@ -24,14 +24,6 @@ uint64_t offsetOfDylibInSharedCache(const char *sharedCachePath, const char *fil
         return 0;
     }
 
-    struct stat st;
-    if (fstat(fd, &st) < 0) {
-        fprintf(stderr, "ERROR: Failed to fstat() shared cache file: %s\n", sharedCachePath);
-        close(fd);
-        return NO;
-    }
-    //size_t sharedCacheSize = st.st_size;
-
     size_t headerSize = sizeof(dyld_cache_header);
     dyld_cache_header *header = reinterpret_cast<dyld_cache_header *>(malloc(headerSize));
     if (read(fd, header, headerSize) < 0) {
@@ -43,7 +35,6 @@ uint64_t offsetOfDylibInSharedCache(const char *sharedCachePath, const char *fil
     const uint32_t imagesOffset = header->imagesOffset;
     const uint32_t imagesCount = header->imagesCount;
     const uint64_t dyldBaseAddress = header->dyldBaseAddress;
-    fprintf(stderr, "base addr: %llx\n", dyldBaseAddress);
     free(header);
 
     // Adjust for page size.
@@ -97,13 +88,6 @@ NSString *nameForLocalSymbol(NSString *sharedCachePath, uint64_t dylibOffset, ui
     int fd = open([sharedCachePath UTF8String], O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "Failed to open the shared cache file.\n");
-        return nil;
-    }
-
-    struct stat st;
-    if (fstat(fd, &st) < 0) {
-        fprintf(stderr, "Failed to fstat() the shared cache file.\n");
-        close(fd);
         return nil;
     }
 
