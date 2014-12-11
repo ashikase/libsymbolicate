@@ -16,7 +16,7 @@
 #include <objc/runtime.h>
 #include <string.h>
 #include "demangle.h"
-#include "localSymbols.h"
+#include "sharedCache.h"
 
 @implementation SCSymbolicator
 

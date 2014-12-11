@@ -7,7 +7,7 @@
  * License: LGPL v3 (See LICENSE file for details)
  */
 
-#include "localSymbols.h"
+#include "sharedCache.h"
 
 #include <fcntl.h>
 #include <mach-o/nlist.h>
