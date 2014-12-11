@@ -18,22 +18,6 @@
 #include "demangle.h"
 #include "localSymbols.h"
 
-#ifndef kCFCoreFoundationVersionNumber_iOS_6_0
-#define kCFCoreFoundationVersionNumber_iOS_7_0 793.00
-#endif
-
-#ifndef kCFCoreFoundationVersionNumber_iOS_7_0
-#define kCFCoreFoundationVersionNumber_iOS_7_0 847.20
-#endif
-
-#ifndef kCFCoreFoundationVersionNumber10_7
-#define kCFCoreFoundationVersionNumber10_7 635.00
-#endif
-
-#ifndef kCFCoreFoundationVersionNumber10_8
-#define kCFCoreFoundationVersionNumber10_8 744.00
-#endif
-
 @implementation SCSymbolicator
 
 @synthesize architecture = architecture_;
