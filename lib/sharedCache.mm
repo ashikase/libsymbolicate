@@ -60,7 +60,6 @@ uint64_t offsetOfDylibInSharedCache(const char *sharedCachePath, const char *fil
             if (pathFile != MAP_FAILED) {
                 const char *path = reinterpret_cast<const char *>(reinterpret_cast<uint8_t *>(pathFile) + pathFileOffset - pathFilePageOffset);
                 if (strcmp(filepath, path) == 0) {
-                    fprintf(stderr, "Found path is %s\n", path);
                     offset = (images[i].address - dyldBaseAddress);
                     munmap(pathFile, pathFileLen);
                     break;
