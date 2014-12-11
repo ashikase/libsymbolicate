@@ -48,7 +48,7 @@ uint64_t offsetOfDylibInSharedCache(const char *sharedCachePath, const char *fil
     if (data != MAP_FAILED) {
         uint8_t *memory = reinterpret_cast<uint8_t *>(data);
 
-        dyld_cache_image_info *images = reinterpret_cast<dyld_cache_image_info *>(memory + imagesOffset - imagesPageOffset);
+        dyld_cache_image_info *images = reinterpret_cast<dyld_cache_image_info *>(memory + (imagesOffset - imagesPageOffset));
         for (uint32_t i = 0; i < imagesCount; ++i) {
             // NOTE: The maximum allowed path length is 1024 bytes.
             //       (According to /usr/include/sys/syslimits.h)
@@ -58,7 +58,7 @@ uint64_t offsetOfDylibInSharedCache(const char *sharedCachePath, const char *fil
             const size_t pathFileLen = (pathFileOffset - pathFilePageOffset) + 1024;
             void *pathFile = mmap(NULL, pathFileLen, PROT_READ, MAP_PRIVATE, fd, pathFilePageOffset);
             if (pathFile != MAP_FAILED) {
-                const char *path = reinterpret_cast<const char *>(reinterpret_cast<uint8_t *>(pathFile) + pathFileOffset - pathFilePageOffset);
+                const char *path = reinterpret_cast<const char *>(reinterpret_cast<uint8_t *>(pathFile) + (pathFileOffset - pathFilePageOffset));
                 if (strcmp(filepath, path) == 0) {
                     offset = (images[i].address - dyldBaseAddress);
                     munmap(pathFile, pathFileLen);
@@ -110,6 +110,13 @@ const char *nameForLocalSymbol(const char *sharedCachePath, uint64_t dylibOffset
     const uint64_t localSymbolsSize = header->localSymbolsSize;
     free(header);
 
+    // Adjust for page size.
+    // NOTE: mmap() may fail if offset is not page-aligned.
+    const int pagesize = getpagesize();
+    const uint32_t localSymbolsPage = localSymbolsOffset / pagesize;
+    const off_t localSymbolsPageOffset = localSymbolsPage * pagesize;
+    const size_t localSymbolsLen = (localSymbolsOffset - localSymbolsPageOffset) + localSymbolsSize;
+
     // Adjust dylib offset.
     // FIXME: As mentioned in SCSymbolicator, the passed value of dylib offset
     //        is not quite correct. Must determine the reason for this.
@@ -118,10 +125,10 @@ const char *nameForLocalSymbol(const char *sharedCachePath, uint64_t dylibOffset
     // Zero-out any previously retrieved name.
     memset(name, 0, sizeof(name));
 
-    void *data = mmap(NULL, localSymbolsSize, PROT_READ, MAP_PRIVATE, fd, localSymbolsOffset);
-    dyld_cache_local_symbols_info *localSymbols = reinterpret_cast<dyld_cache_local_symbols_info *>(data);
+    void *data = mmap(NULL, localSymbolsLen, PROT_READ, MAP_PRIVATE, fd, localSymbolsPageOffset);
     close(fd);
-    if (localSymbols != MAP_FAILED) {
+    if (data != MAP_FAILED) {
+        dyld_cache_local_symbols_info *localSymbols = reinterpret_cast<dyld_cache_local_symbols_info *>(reinterpret_cast<uint8_t *>(data) + (localSymbolsOffset - localSymbolsPageOffset));
         dyld_cache_local_symbols_entry *entries = reinterpret_cast<dyld_cache_local_symbols_entry *>(reinterpret_cast<uint8_t *>(localSymbols) + localSymbols->entriesOffset);
         for (uint32_t i = 0; i < localSymbols->entriesCount; ++i) {
             dyld_cache_local_symbols_entry *entry = &entries[i];
@@ -152,7 +159,7 @@ const char *nameForLocalSymbol(const char *sharedCachePath, uint64_t dylibOffset
                 break;
             }
         }
-        munmap(localSymbols, localSymbolsSize);
+        munmap(data, localSymbolsLen);
     } else {
         fprintf(stderr, "ERROR: Failed to mmap local symbols portion of shared cache file: %s\n", sharedCachePath);
     }
