@@ -27,7 +27,7 @@ uint64_t offsetOfDylibInSharedCache(const char *sharedCachePath, const char *fil
     size_t headerSize = sizeof(dyld_cache_header);
     dyld_cache_header *header = reinterpret_cast<dyld_cache_header *>(malloc(headerSize));
     if (read(fd, header, headerSize) < 0) {
-        fprintf(stderr, "ERROR: Failed to read the shared cache header\n");
+        fprintf(stderr, "ERROR: Failed to read header for shared cache file: %s\n", sharedCachePath);
         free(header);
         close(fd);
         return 0;
@@ -91,14 +91,14 @@ const char *nameForLocalSymbol(const char *sharedCachePath, uint64_t dylibOffset
 
     int fd = open(sharedCachePath, O_RDONLY);
     if (fd < 0) {
-        fprintf(stderr, "Failed to open the shared cache file.\n");
+        fprintf(stderr, "ERROR: Failed to open shared cache file: %s\n", sharedCachePath);
         return NULL;
     }
 
     size_t headerSize = sizeof(dyld_cache_header);
     dyld_cache_header *header = reinterpret_cast<dyld_cache_header *>(malloc(headerSize));
     if (read(fd, header, headerSize) < 0) {
-        fprintf(stderr, "Failed to read the shared cache header.\n");
+        fprintf(stderr, "ERROR: Failed to read header for shared cache file: %s\n", sharedCachePath);
         free(header);
         close(fd);
         return NULL;
@@ -150,7 +150,7 @@ const char *nameForLocalSymbol(const char *sharedCachePath, uint64_t dylibOffset
         }
         munmap(localSymbols, localSymbolsSize);
     } else {
-        fprintf(stderr, "Failed to mmap the shared cache.\n");
+        fprintf(stderr, "ERROR: Failed to mmap local symbols portion of shared cache file: %s\n", sharedCachePath);
     }
 
     return name;
