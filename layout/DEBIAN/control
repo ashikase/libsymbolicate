@@ -1,10 +1,10 @@
 Package: jp.ashikase.libsymbolicate
 Name: libsymbolicate
-Version: 1.7.0.3
+Version: 1.8.0
 Description: Library to symbolicate memory addresses.
     This library is based upon CrashReporter by kennytm.
 Architecture: iphoneos-arm
-Pre-Depends: firmware (>=3.0)
+Pre-Depends: firmware (>=4.0)
 Depiction: http://moreinfo.thebigboss.org/moreinfo/depiction.php?file=libsymbolicateData
 Homepage: http://github.com/ashikase/libsymbolicate
 Maintainer: BigBoss <bigboss@thebigboss.org>

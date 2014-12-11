@@ -1,3 +1,15 @@
+> # Version 1.8.0
+> - - -
+> * NEW: iOS 8 / OS X 10.10
+>     * Symbolication now works on iOS 8 and OS X 10.10.
+> * MOD: CoreSymbolication
+>     * Replaced use of Symbolication.framework with CoreSymbolication.framework.
+> * MOD: iOS 3
+>     * Due to the use of CoreSymbolication, iOS 3 is no longer supported.
+>     * The original CrashReporter ("CrashReporter iOS 3" <hk.kennytm.crashreporter>) can be used for iOS 3.
+
+- - -
+
 > # Version 1.7.0.3
 > - - -
 > * MOD: iOS 8 / OS X 10.10
