@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 uint64_t offsetOfDylibInSharedCache(const char *sharedCachePath, const char *filepath);
-NSString *nameForLocalSymbol(NSString *sharedCachePath, uint64_t dylibOffset, uint64_t symbolAddress);
+const char *nameForLocalSymbol(const char *sharedCachePath, uint64_t dylibOffset, uint64_t symbolAddress);
 
 #ifdef __cplusplus
 }

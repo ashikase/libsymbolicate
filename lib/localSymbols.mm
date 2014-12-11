@@ -82,13 +82,17 @@ uint64_t offsetOfDylibInSharedCache(const char *sharedCachePath, const char *fil
     return offset;
 }
 
-NSString *nameForLocalSymbol(NSString *sharedCachePath, uint64_t dylibOffset, uint64_t symbolAddress) {
-    NSString *name = nil;
+// NOTE: This function uses static storage, meaning that it is not thread safe.
+//       The alternative would be to return a dynamically-allocated string, but
+//       that would require the caller to free it when done using it.
+const char *nameForLocalSymbol(const char *sharedCachePath, uint64_t dylibOffset, uint64_t symbolAddress) {
+    // TODO: Determine max allowed length for symbol names (if such a limit exists).
+    static char name[1025];
 
-    int fd = open([sharedCachePath UTF8String], O_RDONLY);
+    int fd = open(sharedCachePath, O_RDONLY);
     if (fd < 0) {
         fprintf(stderr, "Failed to open the shared cache file.\n");
-        return nil;
+        return NULL;
     }
 
     size_t headerSize = sizeof(dyld_cache_header);
@@ -97,7 +101,7 @@ NSString *nameForLocalSymbol(NSString *sharedCachePath, uint64_t dylibOffset, ui
         fprintf(stderr, "Failed to read the shared cache header.\n");
         free(header);
         close(fd);
-        return nil;
+        return NULL;
     }
     // NOTE: Local symbol offset/size fields did not exist in earlier firmware.
     // TODO: At what point were they introduced?
@@ -106,6 +110,9 @@ NSString *nameForLocalSymbol(NSString *sharedCachePath, uint64_t dylibOffset, ui
     const uint64_t localSymbolsOffset = header->localSymbolsOffset;
     const uint64_t localSymbolsSize = header->localSymbolsSize;
     free(header);
+
+    // Zero-out any previously retrieved name.
+    memset(name, 0, sizeof(name));
 
     void *data = mmap(NULL, localSymbolsSize, PROT_READ, MAP_PRIVATE, fd, localSymbolsOffset);
     dyld_cache_local_symbols_info *localSymbols = reinterpret_cast<dyld_cache_local_symbols_info *>(data);
@@ -122,7 +129,7 @@ NSString *nameForLocalSymbol(NSString *sharedCachePath, uint64_t dylibOffset, ui
                         if (n->n_value == symbolAddress) {
                             if (n->n_un.n_strx != 0 && (n->n_type & N_STAB) == 0) {
                                 const char *strings = reinterpret_cast<const char *>((uint64_t)localSymbols + localSymbols->stringsOffset);
-                                name = [NSString stringWithCString:(strings + n->n_un.n_strx) encoding:NSASCIIStringEncoding];
+                                strncpy(name, (strings + n->n_un.n_strx), 1024);
                             }
                             break;
                         }
@@ -132,7 +139,7 @@ NSString *nameForLocalSymbol(NSString *sharedCachePath, uint64_t dylibOffset, ui
                         if (n->n_value == symbolAddress) {
                             if (n->n_un.n_strx != 0 && (n->n_type & N_STAB) == 0) {
                                 const char *strings = reinterpret_cast<const char *>((uint64_t)localSymbols + localSymbols->stringsOffset);
-                                name = [NSString stringWithCString:(strings + n->n_un.n_strx) encoding:NSASCIIStringEncoding];
+                                strncpy(name, (strings + n->n_un.n_strx), 1024);
                             }
                             break;
                         }

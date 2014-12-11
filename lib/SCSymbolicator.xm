@@ -104,10 +104,11 @@ CFComparisonResult reverseCompareUnsignedLongLong(CFNumberRef a, CFNumberRef b) 
                         //       reason, the value retrieved using our own
                         //       function always differs by 0x200000.
                         // TODO: Determine the reason for this difference.
-                        uint64_t dylibOffset = offsetOfDylibInSharedCache([[self sharedCachePath] UTF8String], [[binaryInfo path] UTF8String]);
-                        NSString *localName = nameForLocalSymbol(sharedCachePath, dylibOffset, [symbolInfo addressRange].location);
-                        if (localName != nil) {
-                            name = localName;
+                        const char *cachePath = [sharedCachePath UTF8String];
+                        uint64_t dylibOffset = offsetOfDylibInSharedCache(cachePath, [[binaryInfo path] UTF8String]);
+                        const char *localName = nameForLocalSymbol(cachePath, dylibOffset, [symbolInfo addressRange].location);
+                        if ((localName != NULL) && (strlen(localName) > 0)) {
+                            name = [NSString stringWithCString:localName encoding:NSASCIIStringEncoding];
                         } else {
                             fprintf(stderr, "Unable to determine name for: %s, 0x%08llx\n", [[binaryInfo path] UTF8String], [symbolInfo addressRange].location);
                         }
