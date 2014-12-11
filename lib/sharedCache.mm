@@ -111,6 +111,11 @@ const char *nameForLocalSymbol(const char *sharedCachePath, uint64_t dylibOffset
     const uint64_t localSymbolsSize = header->localSymbolsSize;
     free(header);
 
+    // Adjust dylib offset.
+    // FIXME: As mentioned in SCSymbolicator, the passed value of dylib offset
+    //        is not quite correct. Must determine the reason for this.
+    dylibOffset -= (is64Bit ? 0x60000000 : 0x200000);
+
     // Zero-out any previously retrieved name.
     memset(name, 0, sizeof(name));
 
