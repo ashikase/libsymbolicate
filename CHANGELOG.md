@@ -1,3 +1,10 @@
+> # Version 1.8.1
+> - - -
+> * FIX: iOS 9
+>     * As per Jay Freeman (saurik): "iOS 9 changed the 32-bit pagesize on 64-bit CPUs from 4096 bytes to 16384: all 32-bit binaries must now be compiled with -Wl,-segalign,4000.".
+
+- - -
+
 > # Version 1.8.0
 > - - -
 > * NEW: iOS 8 / OS X 10.10
