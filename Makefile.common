@@ -13,7 +13,7 @@ libsymbolicate_OBJC_FILES = \
     lib/sharedCache.mm \
     lib/methods.mm
 libsymbolicate_PRIVATE_FRAMEWORKS = CoreSymbolication Symbolication
-ADDITIONAL_CFLAGS = -DPKG_ID=\"$(PKG_ID)\" -ILibraries -Iinclude
+ADDITIONAL_CFLAGS = -DPKG_ID=\"$(PKG_ID)\" -ILibraries -Iinclude -Wno-unused-local-typedef
 
 include theos/makefiles/common.mk
 include $(THEOS)/makefiles/library.mk
