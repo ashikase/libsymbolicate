@@ -1,3 +1,10 @@
+> # Version 1.8.0.2
+> - - -
+> * FIX: iOS 9
+>     * Temporarily disabled symbolication of items from 64-bit cache in order to prevent crashing.
+
+- - -
+
 > # Version 1.8.0.1
 > - - -
 > * FIX: iOS 9
