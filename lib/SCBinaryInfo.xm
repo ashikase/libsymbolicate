@@ -337,15 +337,6 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
     if (CSIsNull(symbolicator_)) {
         CSArchitecture arch = architectureForName([[self architecture] UTF8String]);
         if (arch.cpu_type != 0) {
-            // FIXME: On iOS 9, attempting to create symbolicator for binary in
-            //        64-bit shared cache results in crash.
-            if ((kCFCoreFoundationVersionNumber >= 1240.10) && (arch.cpu_type == CPU_TYPE_ARM64)) {
-                struct stat st;
-                if (stat([[self path] UTF8String], &st) != 0) {
-                    goto exit;
-                }
-            }
-
             CSSymbolicatorRef symbolicator = CSSymbolicatorCreateWithPathAndArchitecture([[self path] UTF8String], arch);
             if (!CSIsNull(symbolicator)) {
                 symbolicator_ = symbolicator;
@@ -353,7 +344,6 @@ CFUUIDRef CFUUIDCreateFromUnformattedCString(const char *string) {
         }
     }
 
-exit:
     return symbolicator_;
 }
 
