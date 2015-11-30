@@ -1,3 +1,14 @@
+> # Version 1.9.0
+> - - -
+> * NEW: arm64
+>     * Added arm64 slice.
+> * MOD: armv7(s)
+>     * Removed armv7 and armv7s slices.
+> * FIX: iOS 9
+>     * Fixed inability to symbolicate items from the 64-bit cache.
+
+- - -
+
 > # Version 1.8.0.2
 > - - -
 > * FIX: iOS 9
